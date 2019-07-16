@@ -293,12 +293,9 @@ func (g *Game) MakeMove(m Move) (string, error) {
 			InCheck: false,
 		}
 	}
-	if g.InCheck(player) {
-		return "", &MoveError{
-			Cause:   m,
-			InCheck: true,
-		}
-	}
+
+	// TODO - check to see if the player is in check
+	// TODO - implement castling properly
 
 	// variable used later for draw-status-updating
 	var pieceTaken bool
