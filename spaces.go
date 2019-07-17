@@ -3,14 +3,14 @@ package chess
 import "fmt"
 
 // Taken is a sentinel Space which represents a piece that has been taken.
-var Taken = Space{-500, -500}
+var Taken = Space{File: -500, Rank: -500}
 
 // Space represents a space on the chess board. The var
 // "Taken" represents the space of a piece that has been taken.
 //
 // Rank and File are zero-indexed.
 type Space struct {
-	Rank, File int
+	_, File, Rank int
 }
 
 // Valid returns if the space is a valid space to be occupying

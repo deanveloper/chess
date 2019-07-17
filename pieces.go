@@ -57,6 +57,15 @@ func (p Piece) String() string {
 	return fmt.Sprintf("%v %v on %v", p.Color, p.Type, p.Location)
 }
 
+// Symbol returns a rune representing the piece
+func (p Piece) Symbol() rune {
+	if p.Color == White {
+		return [...]rune{' ', '♙', '♖', '♘', '♗', '♕', '♔'}[p.Type]
+	}
+
+	return [...]rune{' ', '♟', '♜', '♞', '♝', '♛', '♚'}[p.Type]
+}
+
 // History returns all of the movement history that this piece has made.
 func (p Piece) History(g *Game) []Move {
 	var trackedSpace = p.Location

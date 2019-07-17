@@ -24,6 +24,20 @@ func (g *Game) Clone(withHistory bool) *Game {
 	return newG
 }
 
+// Board returns the game board in it's current state.
+// You may access board contents with Board()[file][rank]
+func (g *Game) Board() [8][8]Piece {
+	board := [8][8]Piece{}
+	for _, piece := range g.AlivePieces(White) {
+		board[piece.Location.File][piece.Location.Rank] = piece
+	}
+	for _, piece := range g.AlivePieces(Black) {
+		board[piece.Location.File][piece.Location.Rank] = piece
+	}
+
+	return board
+}
+
 // returns a mutable slice of the pieces for a given color.
 // not exported because modifying this slice will modify the game.
 func (g *Game) pieces(c Color) []Piece {
@@ -254,7 +268,9 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 	for i, piece := range pieces {
 		if piece.Location == m.Moving.Location {
 			pieces[i].Location = m.To
-			pieces[i].Type = m.Promotion
+			if m.Promotion != None {
+				pieces[i].Type = m.Promotion
+			}
 		}
 	}
 
@@ -290,6 +306,19 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 // MakeMove makes a move in the game, or returns an error if the move is not possible.
 func (g *Game) MakeMove(m Move) error {
 
+	// check to make sure correct color is moving
+	var colorToMove Color
+	if len(g.History)%2 == 0 {
+		colorToMove = White
+	} else {
+		colorToMove = Black
+	}
+	if m.Moving.Color != colorToMove {
+		return &MoveError{
+			Cause:  m,
+			Reason: "it is " + m.Moving.Color.String() + "'s turn",
+		}
+	}
 	// check if the move is valid
 	var validMove bool
 	seeing := m.Moving.Seeing(g)
@@ -323,15 +352,15 @@ func (g *Game) MakeMove(m Move) error {
 		}
 	}
 
-	var outOfCheck bool
+	var inCheck bool
 	legalMoves := m.Moving.LegalMoves(g)
 	for _, s := range legalMoves {
 		if m.To == s {
-			outOfCheck = true
+			inCheck = true
 			break
 		}
 	}
-	if !outOfCheck {
+	if inCheck {
 		return &MoveError{
 			Cause:   m,
 			Reason:  "player is in check",
@@ -391,40 +420,40 @@ func slicesEqual(a []Space, b []Space) bool {
 func (g *Game) Init() {
 	*g = Game{
 		white: [16]Piece{
-			Piece{Type: King, Location: Space{0, 4}, Color: White},
-			Piece{Type: Queen, Location: Space{0, 3}, Color: White},
-			Piece{Type: Rook, Location: Space{0, 0}, Color: White},
-			Piece{Type: Rook, Location: Space{0, 7}, Color: White},
-			Piece{Type: Bishop, Location: Space{0, 2}, Color: White},
-			Piece{Type: Bishop, Location: Space{0, 5}, Color: White},
-			Piece{Type: Knight, Location: Space{0, 1}, Color: White},
-			Piece{Type: Knight, Location: Space{0, 6}, Color: White},
-			Piece{Type: Pawn, Location: Space{1, 0}, Color: White},
-			Piece{Type: Pawn, Location: Space{1, 1}, Color: White},
-			Piece{Type: Pawn, Location: Space{1, 2}, Color: White},
-			Piece{Type: Pawn, Location: Space{1, 3}, Color: White},
-			Piece{Type: Pawn, Location: Space{1, 4}, Color: White},
-			Piece{Type: Pawn, Location: Space{1, 5}, Color: White},
-			Piece{Type: Pawn, Location: Space{1, 6}, Color: White},
-			Piece{Type: Pawn, Location: Space{1, 7}, Color: White},
+			Piece{Type: King, Location: Space{Rank: 0, File: 4}, Color: White},
+			Piece{Type: Queen, Location: Space{Rank: 0, File: 3}, Color: White},
+			Piece{Type: Rook, Location: Space{Rank: 0, File: 0}, Color: White},
+			Piece{Type: Rook, Location: Space{Rank: 0, File: 7}, Color: White},
+			Piece{Type: Bishop, Location: Space{Rank: 0, File: 2}, Color: White},
+			Piece{Type: Bishop, Location: Space{Rank: 0, File: 5}, Color: White},
+			Piece{Type: Knight, Location: Space{Rank: 0, File: 1}, Color: White},
+			Piece{Type: Knight, Location: Space{Rank: 0, File: 6}, Color: White},
+			Piece{Type: Pawn, Location: Space{Rank: 1, File: 0}, Color: White},
+			Piece{Type: Pawn, Location: Space{Rank: 1, File: 1}, Color: White},
+			Piece{Type: Pawn, Location: Space{Rank: 1, File: 2}, Color: White},
+			Piece{Type: Pawn, Location: Space{Rank: 1, File: 3}, Color: White},
+			Piece{Type: Pawn, Location: Space{Rank: 1, File: 4}, Color: White},
+			Piece{Type: Pawn, Location: Space{Rank: 1, File: 5}, Color: White},
+			Piece{Type: Pawn, Location: Space{Rank: 1, File: 6}, Color: White},
+			Piece{Type: Pawn, Location: Space{Rank: 1, File: 7}, Color: White},
 		},
 		black: [16]Piece{
-			Piece{Type: King, Location: Space{7, 4}, Color: Black},
-			Piece{Type: Queen, Location: Space{7, 3}, Color: Black},
-			Piece{Type: Rook, Location: Space{7, 0}, Color: Black},
-			Piece{Type: Rook, Location: Space{7, 7}, Color: Black},
-			Piece{Type: Bishop, Location: Space{7, 2}, Color: Black},
-			Piece{Type: Bishop, Location: Space{7, 5}, Color: Black},
-			Piece{Type: Knight, Location: Space{7, 1}, Color: Black},
-			Piece{Type: Knight, Location: Space{7, 6}, Color: Black},
-			Piece{Type: Pawn, Location: Space{6, 0}, Color: Black},
-			Piece{Type: Pawn, Location: Space{6, 1}, Color: Black},
-			Piece{Type: Pawn, Location: Space{6, 2}, Color: Black},
-			Piece{Type: Pawn, Location: Space{6, 3}, Color: Black},
-			Piece{Type: Pawn, Location: Space{6, 4}, Color: Black},
-			Piece{Type: Pawn, Location: Space{6, 5}, Color: Black},
-			Piece{Type: Pawn, Location: Space{6, 6}, Color: Black},
-			Piece{Type: Pawn, Location: Space{6, 7}, Color: Black},
+			Piece{Type: King, Location: Space{Rank: 7, File: 4}, Color: Black},
+			Piece{Type: Queen, Location: Space{Rank: 7, File: 3}, Color: Black},
+			Piece{Type: Rook, Location: Space{Rank: 7, File: 0}, Color: Black},
+			Piece{Type: Rook, Location: Space{Rank: 7, File: 7}, Color: Black},
+			Piece{Type: Bishop, Location: Space{Rank: 7, File: 2}, Color: Black},
+			Piece{Type: Bishop, Location: Space{Rank: 7, File: 5}, Color: Black},
+			Piece{Type: Knight, Location: Space{Rank: 7, File: 1}, Color: Black},
+			Piece{Type: Knight, Location: Space{Rank: 7, File: 6}, Color: Black},
+			Piece{Type: Pawn, Location: Space{Rank: 6, File: 0}, Color: Black},
+			Piece{Type: Pawn, Location: Space{Rank: 6, File: 1}, Color: Black},
+			Piece{Type: Pawn, Location: Space{Rank: 6, File: 2}, Color: Black},
+			Piece{Type: Pawn, Location: Space{Rank: 6, File: 3}, Color: Black},
+			Piece{Type: Pawn, Location: Space{Rank: 6, File: 4}, Color: Black},
+			Piece{Type: Pawn, Location: Space{Rank: 6, File: 5}, Color: Black},
+			Piece{Type: Pawn, Location: Space{Rank: 6, File: 6}, Color: Black},
+			Piece{Type: Pawn, Location: Space{Rank: 6, File: 7}, Color: Black},
 		},
 	}
 }
