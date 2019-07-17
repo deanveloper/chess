@@ -287,21 +287,25 @@ func (g *Game) MakeMove(m Move) error {
 	}
 	if !validMove {
 		return &MoveError{
-			Cause:   m,
-			InCheck: false,
+			Cause:  m,
+			Reason: "piece cannot see space",
 		}
 	}
-	if m.Moving.Type == Pawn {
-		if m.To.Rank == 0 || m.To.Rank == 7 {
-			switch m.Promotion {
-			case Rook, Knight, Bishop, Queen:
-				break
-			default:
-				return &MoveError{
-					Cause:   m,
-					InCheck: false,
-				}
+
+	if m.Moving.Type == Pawn && (m.To.Rank == 0 || m.To.Rank == 7) {
+		switch m.Promotion {
+		case Rook, Knight, Bishop, Queen:
+			break
+		default:
+			return &MoveError{
+				Cause:  m,
+				Reason: "cannot promote to " + m.Promotion.String(),
 			}
+		}
+	} else if m.Promotion != None {
+		return &MoveError{
+			Cause:  m,
+			Reason: "piece cannot promote",
 		}
 	}
 
@@ -316,6 +320,7 @@ func (g *Game) MakeMove(m Move) error {
 	if !outOfCheck {
 		return &MoveError{
 			Cause:   m,
+			Reason:  "player is in check",
 			InCheck: true,
 		}
 	}
