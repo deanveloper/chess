@@ -320,8 +320,6 @@ func (g *Game) MakeMove(m Move) error {
 		}
 	}
 
-	// TODO - only allow pawn to move to end if .Promotion is set
-
 	// make the move
 	g.makeMoveUnconditionally(m)
 
