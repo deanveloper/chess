@@ -254,10 +254,25 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 	for i, piece := range pieces {
 		if piece.Location == m.Moving.Location {
 			pieces[i].Location = m.To
+			pieces[i].Type = m.Promotion
 		}
 	}
+
+	takingSpace := m.To
+
+	// en passant:
+	// if the moving pawn moved into an empty space
+	if _, ok := g.PieceAt(m.To); m.Moving.Type == Pawn && !ok {
+		fileDiff := m.Moving.Location.File - m.To.File
+		rankDiff := m.Moving.Location.Rank - m.To.Rank
+		// if the moving pawn moved diagonally
+		if (fileDiff == 1 || fileDiff == -1) && (rankDiff == 1 || rankDiff == -1) {
+			takingSpace = Space{File: m.To.File, Rank: m.Moving.Location.Rank}
+		}
+	}
+
 	for i, piece := range otherPieces {
-		if piece.Location == m.To {
+		if piece.Location == takingSpace {
 			pieces[i].Location = Taken
 			pieceTaken = true
 		}
@@ -270,7 +285,6 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 	} else {
 		g.fiftyMoveDetector++
 	}
-
 }
 
 // MakeMove makes a move in the game, or returns an error if the move is not possible.
