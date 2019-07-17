@@ -127,7 +127,7 @@ func (g *Game) InCheck(c Color) bool {
 		}
 	}
 
-	oPieces := g.AlivePieces(c.Other())
+	oPieces := g.AlivePieces(c)
 	for _, piece := range oPieces {
 		seeing := piece.Seeing(g)
 		for _, sees := range seeing {
@@ -137,6 +137,10 @@ func (g *Game) InCheck(c Color) bool {
 		}
 	}
 
+	return false
+}
+
+func (g *Game) canSee(c Color, s Space) bool {
 	return false
 }
 
@@ -272,8 +276,6 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 // MakeMove makes a move in the game, or returns an error if the move is not possible.
 func (g *Game) MakeMove(m Move) error {
 
-	player := m.Moving.Color
-
 	// check if the move is valid
 	var validMove bool
 	seeing := m.Moving.Seeing(g)
@@ -287,6 +289,19 @@ func (g *Game) MakeMove(m Move) error {
 		return &MoveError{
 			Cause:   m,
 			InCheck: false,
+		}
+	}
+	if m.Moving.Type == Pawn {
+		if m.To.Rank == 0 || m.To.Rank == 7 {
+			switch m.Promotion {
+			case Rook, Knight, Bishop, Queen:
+				break
+			default:
+				return &MoveError{
+					Cause:   m,
+					InCheck: false,
+				}
+			}
 		}
 	}
 
@@ -305,33 +320,29 @@ func (g *Game) MakeMove(m Move) error {
 		}
 	}
 
-	// TODO - implement castling properly
 	// TODO - only allow pawn to move to end if .Promotion is set
 
-	// variable used later for draw-status-updating
-	var pieceTaken bool
-
 	// make the move
-	pieces := g.pieces(player)
-	otherPieces := g.pieces(player.Other())
-	for i, piece := range pieces {
-		if piece.Location == m.Moving.Location {
-			pieces[i].Location = m.To
-		}
-	}
-	for i, piece := range otherPieces {
-		if piece.Location == m.To {
-			pieces[i].Location = Taken
-			pieceTaken = true
-		}
-	}
-	g.History = append(g.History, m)
+	g.makeMoveUnconditionally(m)
 
-	// update draw detectors
-	if pieceTaken || m.Moving.Type == Pawn {
-		g.fiftyMoveDetector = 0
-	} else {
-		g.fiftyMoveDetector++
+	// move rook in castles
+	if m.Moving.Type == King {
+		diff := m.Moving.Location.File - m.To.File
+
+		if diff == -2 {
+			rook, _ := g.PieceAt(Space{File: 0, Rank: m.To.Rank})
+			g.makeMoveUnconditionally(Move{
+				Moving: rook,
+				To:     Space{File: 3, Rank: m.To.Rank},
+			})
+		}
+		if diff == 2 {
+			rook, _ := g.PieceAt(Space{File: 7, Rank: m.To.Rank})
+			g.makeMoveUnconditionally(Move{
+				Moving: rook,
+				To:     Space{File: 5, Rank: m.To.Rank},
+			})
+		}
 	}
 
 	return nil

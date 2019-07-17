@@ -251,7 +251,63 @@ func (p Piece) Seeing(g *Game) []Space {
 // LegalMoves returns all of the legal moves for p.
 func (p Piece) LegalMoves(g *Game) []Space {
 	var legal []Space
+
 	for _, space := range p.Seeing(g) {
+
+		// special case - remove castles if in check or the
+		// middle square of the castle puts you in check
+		if p.Type == King {
+			diff := p.Location.File - space.File
+
+			// no castling at all while in check
+			if diff == -2 || diff == 2 {
+				if g.InCheck(p.Color) {
+					continue
+				}
+			}
+
+			// queen-side castle
+			if diff == -2 {
+				clone := g.Clone(false)
+				clone.makeMoveUnconditionally(Move{
+					Moving: p,
+					To:     Space{File: 3, Rank: p.Location.Rank},
+				})
+				if clone.InCheck(p.Color) {
+					continue
+				}
+
+				clone = g.Clone(false)
+				clone.makeMoveUnconditionally(Move{
+					Moving: p,
+					To:     Space{File: 2, Rank: p.Location.Rank},
+				})
+				if clone.InCheck(p.Color) {
+					continue
+				}
+			}
+			// king-side castle
+			if diff == 2 {
+				clone := g.Clone(false)
+				clone.makeMoveUnconditionally(Move{
+					Moving: p,
+					To:     Space{File: 5, Rank: p.Location.Rank},
+				})
+				if clone.InCheck(p.Color) {
+					continue
+				}
+
+				clone = g.Clone(false)
+				clone.makeMoveUnconditionally(Move{
+					Moving: p,
+					To:     Space{File: 6, Rank: p.Location.Rank},
+				})
+				if clone.InCheck(p.Color) {
+					continue
+				}
+			}
+		}
+
 		newG := g.Clone(false)
 		newG.makeMoveUnconditionally(Move{
 			Moving: p,
