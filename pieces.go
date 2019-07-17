@@ -1,5 +1,7 @@
 package chess
 
+import "fmt"
+
 // Color is a type which can be either black or white.
 type Color bool
 
@@ -23,24 +25,25 @@ func (c Color) String() string {
 
 // The enum of pieces
 const (
-	Pawn   PieceType = iota
-	Rook   PieceType = iota
-	Knight PieceType = iota
-	Bishop PieceType = iota
-	Queen  PieceType = iota
-	King   PieceType = iota
+	None PieceType = iota
+	Pawn
+	Rook
+	Knight
+	Bishop
+	Queen
+	King
 )
 
 // PieceType represents a type of piece
-type PieceType int
+type PieceType byte
 
 // ShortName returns the short name of this piece used in alegbraic notation.
 func (p PieceType) ShortName() string {
-	return [...]string{"", "R", "N", "B", "Q", "K"}[p]
+	return [...]string{"none", "", "R", "N", "B", "Q", "K"}[p]
 }
 
 func (p PieceType) String() string {
-	return [...]string{"Pawn", "Rook", "Knight", "Bishop", "Queen", "King"}[p]
+	return [...]string{"None", "Pawn", "Rook", "Knight", "Bishop", "Queen", "King"}[p]
 }
 
 // Piece represents a chess piece.
@@ -50,13 +53,17 @@ type Piece struct {
 	Color    Color
 }
 
+func (p Piece) String() string {
+	return fmt.Sprintf("%v %v on %v", p.Color, p.Type, p.Location)
+}
+
 // History returns all of the movement history that this piece has made.
 func (p Piece) History(g *Game) []Move {
 	var trackedSpace = p.Location
 	var history []Move
 
 	// traverse backward through history
-	for i := len(g.History); i >= 0; i-- {
+	for i := len(g.History) - 1; i >= 0; i-- {
 		move := g.History[i]
 		if trackedSpace == move.To {
 			history = append([]Move{move}, history...)
@@ -113,20 +120,22 @@ func (p Piece) Seeing(g *Game) []Space {
 		}
 
 		// include possibility of en passant
-		var validRank int
-		if p.Color == Black {
-			validRank = 3
-		} else {
-			validRank = 4
-		}
-		lastMove := g.History[len(g.History)-1]
-		if lastMove.To.Rank == validRank && p.Location.Rank == validRank {
-			lastOpposingLoc := lastMove.Moving.Location
-			switch {
-			case p.Color == Black && lastOpposingLoc.Rank == 1:
-				moveTo = append(moveTo, Space{Rank: 2, File: lastOpposingLoc.File})
-			case p.Color == White && lastOpposingLoc.Rank == 6:
-				moveTo = append(moveTo, Space{Rank: 5, File: lastOpposingLoc.File})
+		if len(g.History) > 0 {
+			var validRank int
+			if p.Color == Black {
+				validRank = 3
+			} else {
+				validRank = 4
+			}
+			lastMove := g.History[len(g.History)-1]
+			if lastMove.To.Rank == validRank && p.Location.Rank == validRank {
+				lastOpposingLoc := lastMove.Moving.Location
+				switch {
+				case p.Color == Black && lastOpposingLoc.Rank == 1:
+					moveTo = append(moveTo, Space{Rank: 2, File: lastOpposingLoc.File})
+				case p.Color == White && lastOpposingLoc.Rank == 6:
+					moveTo = append(moveTo, Space{Rank: 5, File: lastOpposingLoc.File})
+				}
 			}
 		}
 
@@ -224,20 +233,35 @@ func (p Piece) Seeing(g *Game) []Space {
 
 	// remove anything where a piece is being taken of the same color,
 	// or anything off of the board.
+	sees := make([]Space, 0, len(moveTo))
 	for i := 0; i < len(moveTo); i++ {
 		s := moveTo[i]
 		if !s.Valid() {
-			copy(moveTo[i:], moveTo[i+1:])
-			moveTo = moveTo[:len(moveTo)-1]
+			continue
 		}
 		if other, ok := g.PieceAt(s); ok && other.Color == p.Color {
-			copy(moveTo[i:], moveTo[i+1:])
-			moveTo = moveTo[:len(moveTo)-1]
+			continue
 		}
-		moveTo = append(moveTo, s)
+		sees = append(sees, s)
 	}
 
-	return moveTo
+	return sees
+}
+
+// LegalMoves returns all of the legal moves for p.
+func (p Piece) LegalMoves(g *Game) []Space {
+	var legal []Space
+	for _, space := range p.Seeing(g) {
+		newG := g.Clone(false)
+		newG.makeMoveUnconditionally(Move{
+			Moving: p,
+			To:     space,
+		})
+		if newG.InCheck(p.Color) {
+			continue
+		}
+	}
+	return legal
 }
 
 func (p Piece) loop(g *Game, next func(Space) Space) []Space {

@@ -32,5 +32,5 @@ func (s Space) String() string {
 	if s == Taken {
 		return "Taken"
 	}
-	return fmt.Sprintf("%c%d", ('a' + s.Rank), s.File+1)
+	return fmt.Sprintf("%c%d", ('a' + s.File), s.Rank+1)
 }

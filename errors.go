@@ -1,6 +1,14 @@
 package chess
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	// ErrParseMove represents the error that occurs when the game is unable to parse a move.
+	ErrParseMove = errors.New("unable to parse move")
+)
 
 // MoveError represents an error caused by an invalid move.
 type MoveError struct {
