@@ -37,6 +37,11 @@ const (
 // PieceType represents a type of piece
 type PieceType byte
 
+// ShortName returns the shortname for p used by Forsyth-Edwards Notation.
+func (p PieceType) ShortName() rune {
+	return [...]rune{'X', 'P', 'R', 'N', 'B', 'Q', 'K'}[p]
+}
+
 func (p PieceType) String() string {
 	return [...]string{"None", "Pawn", "Rook", "Knight", "Bishop", "Queen", "King"}[p]
 }

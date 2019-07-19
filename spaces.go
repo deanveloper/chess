@@ -10,7 +10,7 @@ var Taken = Space{File: -500, Rank: -500}
 //
 // Rank and File are zero-indexed.
 type Space struct {
-	_, File, Rank int
+	File, Rank int
 }
 
 // Valid returns if the space is a valid space to be occupying

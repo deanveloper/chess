@@ -5,7 +5,7 @@ type Game struct {
 	white [16]Piece
 	black [16]Piece
 
-	fiftyMoveDetector int
+	halfmoveClock int
 
 	History []Move
 }
@@ -13,9 +13,9 @@ type Game struct {
 // Clone returns a new instance of `g`.
 func (g *Game) Clone(withHistory bool) *Game {
 	var newG = &Game{
-		white:             g.white,
-		black:             g.black,
-		fiftyMoveDetector: g.fiftyMoveDetector,
+		white:         g.white,
+		black:         g.black,
+		halfmoveClock: g.halfmoveClock,
 	}
 	if withHistory {
 		newG.History = make([]Move, len(g.History), len(g.History)+1)
@@ -25,7 +25,7 @@ func (g *Game) Clone(withHistory bool) *Game {
 }
 
 // Board returns the game board in it's current state.
-// You may access board contents with Board()[file][rank]
+// Access board contents with [file][rank].
 func (g *Game) Board() [8][8]Piece {
 	board := [8][8]Piece{}
 	for _, piece := range g.AlivePieces(White) {
@@ -180,7 +180,7 @@ func (g *Game) CanDraw() bool {
 	color := g.History[len(g.History)-1].Moving.Color
 
 	// 50 move rule
-	if g.fiftyMoveDetector >= 50 && !g.InCheckmate(color.Other()) {
+	if g.halfmoveClock >= 50 && !g.InCheckmate(color.Other()) {
 		return true
 	}
 
@@ -297,9 +297,9 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 
 	// update draw detectors
 	if pieceTaken || m.Moving.Type == Pawn {
-		g.fiftyMoveDetector = 0
+		g.halfmoveClock = 0
 	} else {
-		g.fiftyMoveDetector++
+		g.halfmoveClock++
 	}
 }
 

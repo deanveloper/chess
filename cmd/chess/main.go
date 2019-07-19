@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -57,6 +58,12 @@ func main() {
 			}
 			fmt.Println(bottom)
 			fmt.Println(files)
+		case "fen":
+			if len(fields) > 1 && fields[1] == "extended" {
+				fmt.Println(ioutil.ReadAll(chess.XFENReader(game)))
+			} else {
+				fmt.Println(ioutil.ReadAll(chess.FENReader(game)))
+			}
 		default:
 			fmt.Println("available commands:")
 			fmt.Println("move <from> <to>")
