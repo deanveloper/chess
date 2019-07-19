@@ -37,11 +37,6 @@ const (
 // PieceType represents a type of piece
 type PieceType byte
 
-// ShortName returns the short name of this piece used in alegbraic notation.
-func (p PieceType) ShortName() string {
-	return [...]string{"none", "", "R", "N", "B", "Q", "K"}[p]
-}
-
 func (p PieceType) String() string {
 	return [...]string{"None", "Pawn", "Rook", "Knight", "Bishop", "Queen", "King"}[p]
 }
