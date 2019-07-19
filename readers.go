@@ -1,11 +1,54 @@
 package chess
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"unicode"
 )
+
+// PGNReader returns a reader for a game that
+// reads the data into PGN notation.
+func PGNReader(game *Game, tags map[string]string) io.Reader {
+	order := []string{"Event", "Site", "Date", "Round", "White", "Black", "Result"}
+	fullTags := make([]string, 0, len(tags))
+	for _, key := range order {
+		if val, ok := tags["Event"]; ok {
+			fullTags = append(fullTags, fullTag(key, val))
+		}
+	}
+	return &pgnReader{
+		game: game,
+		tags: fullTags,
+	}
+}
+
+func fullTag(key, value string) string {
+	value = strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(value)
+	return fmt.Sprintf(`[%s "%s"]\n`, key, value)
+}
+
+type pgnReader struct {
+	game *Game
+	tags []string
+
+	bytesRead int
+	err       error
+}
+
+func (r *pgnReader) Read(b []byte) (n int, err error) {
+
+}
+func (r *pgnReader) tagLen(tag string) {
+	var length int
+
+	length += 5                                // brackets + quotes + newline
+	length += len(tag)                         // key
+	length += len(r.tags[tag])                 // value
+	length += strings.Count(r.tags[tag], "\"") // quotes require backslash
+	length += strings.Count(r.tags[tag], "\\") // backslashes require backslash
+}
 
 // FENReader returns a reader for a game that reads
 // the data in Forsyth-Edwards Notation.
