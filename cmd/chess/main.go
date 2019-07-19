@@ -67,6 +67,7 @@ func main() {
 		default:
 			fmt.Println("available commands:")
 			fmt.Println("move <from> <to>")
+			fmt.Println("fen [extended]")
 			fmt.Println("print")
 		}
 		fmt.Print("> ")
