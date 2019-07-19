@@ -37,6 +37,11 @@ const (
 // PieceType represents a type of piece
 type PieceType byte
 
+// Symbol returns a rune representing the piece
+func (p PieceType) Symbol() rune {
+	return [...]rune{' ', '♟', '♜', '♞', '♝', '♛', '♚'}[p]
+}
+
 // ShortName returns the shortname for p used by Forsyth-Edwards Notation.
 func (p PieceType) ShortName() rune {
 	return [...]rune{'X', 'P', 'R', 'N', 'B', 'Q', 'K'}[p]
@@ -55,15 +60,6 @@ type Piece struct {
 
 func (p Piece) String() string {
 	return fmt.Sprintf("%v %v on %v", p.Color, p.Type, p.Location)
-}
-
-// Symbol returns a rune representing the piece
-func (p Piece) Symbol() rune {
-	if p.Color == White {
-		return [...]rune{' ', '♙', '♖', '♘', '♗', '♕', '♔'}[p.Type]
-	}
-
-	return [...]rune{' ', '♟', '♜', '♞', '♝', '♛', '♚'}[p.Type]
 }
 
 // History returns all of the movement history that this piece has made.
