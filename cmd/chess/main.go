@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
+
+	a "github.com/logrusorgru/aurora"
 
 	"github.com/deanveloper/chess"
 )
@@ -42,22 +43,57 @@ func main() {
 				fmt.Println("\t", piece)
 			}
 		case "print":
-			const top = "  ┌───┬───┬───┬───┬───┬───┬───┬───┐"
-			const midPieces = " │ X │ X │ X │ X │ X │ X │ X │ X │"
-			const mid = "  ├───┼───┼───┼───┼───┼───┼───┼───┤"
-			const bottom = "  └───┴───┴───┴───┴───┴───┴───┴───┘"
-			const files = "    a   b   c   d   e   f   g   h"
-
 			board := rotate(game.Board())
-			fmt.Println(top)
-			for i, file := range board {
-				if i != 0 {
-					fmt.Println(mid)
+			for rank, rankSlice := range board {
+
+				const black, white = 5, 15
+
+				fmt.Print("   ")
+
+				for file := 0; file < 8; file++ {
+					space := chess.Space{Rank: rank, File: file}
+					if space.Color() == chess.White {
+						fmt.Print(a.BgGray(white, "     "))
+					} else {
+						fmt.Print(a.BgGray(black, "     "))
+					}
 				}
-				fmt.Println(strconv.Itoa(8-i) + replacePieces(midPieces, file))
+
+				fmt.Println()
+				fmt.Printf(" %d ", 8-rank)
+
+				for file, piece := range rankSlice {
+					space := chess.Space{Rank: rank, File: file}
+
+					var symbol a.Value
+					if piece.Color == chess.White {
+						symbol = a.White(string(piece.Type.Symbol()))
+					} else {
+						symbol = a.Black(string(piece.Type.Symbol()))
+					}
+
+					if space.Color() == chess.White {
+						fmt.Print(a.Sprintf(a.BgGray(white, "  %s  "), a.BgGray(white, symbol)))
+					} else {
+						fmt.Print(a.Sprintf(a.BgGray(black, "  %s  "), a.BgGray(black, symbol)))
+					}
+				}
+
+				fmt.Println()
+				fmt.Print("   ")
+
+				for file := 0; file < 8; file++ {
+					space := chess.Space{Rank: rank, File: file}
+					if space.Color() == chess.White {
+						fmt.Print(a.BgGray(white, "     "))
+					} else {
+						fmt.Print(a.BgGray(black, "     "))
+					}
+				}
+
+				fmt.Println()
 			}
-			fmt.Println(bottom)
-			fmt.Println(files)
+			fmt.Println("     a    b    c    d    e    f    g    h  ")
 		case "fen":
 			if len(fields) > 1 && fields[1] == "extended" {
 				fmt.Println(ioutil.ReadAll(chess.XFENReader(game)))
@@ -82,14 +118,6 @@ func rotate(board [8][8]chess.Piece) [8][8]chess.Piece {
 		}
 	}
 	return newBoard
-}
-
-func replacePieces(format string, pieces [8]chess.Piece) string {
-	final := format
-	for _, piece := range pieces {
-		final = strings.Replace(final, " X ", fmt.Sprintf(" %c ", piece.Symbol()), 1)
-	}
-	return final
 }
 
 func parseMove(g *chess.Game, from, to string) chess.Move {
