@@ -38,16 +38,7 @@ type pgnReader struct {
 }
 
 func (r *pgnReader) Read(b []byte) (n int, err error) {
-
-}
-func (r *pgnReader) tagLen(tag string) {
-	var length int
-
-	length += 5                                // brackets + quotes + newline
-	length += len(tag)                         // key
-	length += len(r.tags[tag])                 // value
-	length += strings.Count(r.tags[tag], "\"") // quotes require backslash
-	length += strings.Count(r.tags[tag], "\\") // backslashes require backslash
+	return 0, nil
 }
 
 // FENReader returns a reader for a game that reads
