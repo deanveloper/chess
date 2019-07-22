@@ -278,7 +278,7 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 
 	// en passant:
 	// if the moving pawn moved into an empty space
-	if _, ok := g.PieceAt(m.To); m.Moving.Type == Pawn && !ok {
+	if _, ok := g.PieceAt(m.To); !ok && m.Moving.Type == Pawn {
 		fileDiff := m.Moving.Location.File - m.To.File
 		rankDiff := m.Moving.Location.Rank - m.To.Rank
 		// if the moving pawn moved diagonally
@@ -289,7 +289,7 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 
 	for i, piece := range otherPieces {
 		if piece.Location == takingSpace {
-			pieces[i].Location = Taken
+			otherPieces[i].Location = Taken
 			pieceTaken = true
 		}
 	}
@@ -316,7 +316,7 @@ func (g *Game) MakeMove(m Move) error {
 	if m.Moving.Color != colorToMove {
 		return &MoveError{
 			Cause:  m,
-			Reason: "it is " + m.Moving.Color.String() + "'s turn",
+			Reason: "it is " + colorToMove.String() + "'s turn",
 		}
 	}
 	// check if the move is valid

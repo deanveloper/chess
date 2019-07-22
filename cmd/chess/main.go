@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	a "github.com/logrusorgru/aurora"
+	"golang.org/x/xerrors"
 
 	"github.com/deanveloper/chess"
 )
@@ -36,13 +38,19 @@ func runCmd(game *chess.Game, fields []string) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			fmt.Printf("panic: %v\n", rec)
+			debug.PrintStack()
 		}
 	}()
 
 	switch fields[0] {
 	case "move":
-		move := parseMove(game, fields[1:])
-		err := game.MakeMove(move)
+		move, err := parseMove(game, fields[1:])
+		if err != nil {
+			fmt.Println("available promotions:")
+			fmt.Println("\trook, knight, bishop, queen")
+			fmt.Println("\tex: move a7 a8 queen")
+		}
+		err = game.MakeMove(move)
 		if err != nil {
 			fmt.Println("Error making move:", err)
 			return
@@ -128,7 +136,7 @@ func rotate(board [8][8]chess.Piece) [8][8]chess.Piece {
 	return newBoard
 }
 
-func parseMove(g *chess.Game, fields []string) chess.Move {
+func parseMove(g *chess.Game, fields []string) (chess.Move, error) {
 
 	var from, to, promotion string
 
@@ -137,7 +145,7 @@ func parseMove(g *chess.Game, fields []string) chess.Move {
 		to = fields[1]
 	}
 	if len(fields) >= 3 {
-		promotion = strings.ToLower(fields[3])
+		promotion = strings.ToLower(fields[2])
 	}
 
 	fromFile := int(from[0] - 'a')
@@ -148,7 +156,7 @@ func parseMove(g *chess.Game, fields []string) chess.Move {
 
 	piece, ok := g.PieceAt(chess.Space{File: fromFile, Rank: fromRank})
 	if !ok {
-		panic("no piece at " + from)
+		return chess.Move{}, xerrors.New("no piece at " + from)
 	}
 
 	pieces := map[string]chess.PieceType{
@@ -165,10 +173,8 @@ func parseMove(g *chess.Game, fields []string) chess.Move {
 	if typ, ok := pieces[promotion]; ok {
 		move.Promotion = typ
 	} else if promotion != "" {
-		fmt.Println("available promotions:")
-		fmt.Println("\trook, knight, bishop, queen")
-		fmt.Println("\tex: move a7 a8 queen")
+		return chess.Move{}, xerrors.New("promotion")
 	}
 
-	return move
+	return move, nil
 }
