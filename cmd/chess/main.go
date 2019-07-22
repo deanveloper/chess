@@ -117,7 +117,7 @@ func runCmd(game *chess.Game, fields []string) {
 		}
 		fmt.Println("     a    b    c    d    e    f    g    h  ")
 	case "fen":
-		fmt.Println(ioutil.ReadAll(chess.FENReader(game)))
+		fmt.Println(string(ioutil.ReadAll(chess.FENReader(game))))
 	default:
 		fmt.Println("available commands:")
 		fmt.Println("move <from> <to> [promotion]")

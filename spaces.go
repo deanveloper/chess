@@ -25,7 +25,7 @@ func (s Space) Color() Color {
 	}
 
 	// (0,0) is black which is represented by `false`
-	return (s.Rank+s.File)%2 != 0
+	return (s.Rank+s.File)%2 == 0
 }
 
 func (s Space) String() string {
