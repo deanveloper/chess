@@ -65,9 +65,9 @@ func runCmd(game *chess.Game, fields []string) {
 			fmt.Println("\t", piece)
 		}
 	case "print":
-		board := rotate(game.Board())
-		for rank, rankSlice := range board {
-
+		board := game.BoardRankFile()
+		for rank := 7; rank >= 0; rank-- {
+			rankSlice := board[rank]
 			const black, white = 5, 15
 
 			fmt.Print("   ")
@@ -128,16 +128,6 @@ func runCmd(game *chess.Game, fields []string) {
 		fmt.Println("fen")
 		fmt.Println("print")
 	}
-}
-
-func rotate(board [8][8]chess.Piece) [8][8]chess.Piece {
-	var newBoard [8][8]chess.Piece
-	for file, row := range board {
-		for rank, piece := range row {
-			newBoard[7-rank][file] = piece
-		}
-	}
-	return newBoard
 }
 
 func parseMove(g *chess.Game, fields []string) (chess.Move, error) {

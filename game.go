@@ -24,15 +24,31 @@ func (g *Game) Clone(withHistory bool) *Game {
 	return newG
 }
 
-// Board returns the game board in it's current state.
-// Access board contents with [file][rank].
-func (g *Game) Board() [8][8]Piece {
+// BoardFileRank returns the game board in it's current state.
+// Access board contents with [file][rank]. Useful for determining
+// the position of pieces.
+func (g *Game) BoardFileRank() [8][8]Piece {
 	board := [8][8]Piece{}
 	for _, piece := range g.AlivePieces(White) {
 		board[piece.Location.File][piece.Location.Rank] = piece
 	}
 	for _, piece := range g.AlivePieces(Black) {
 		board[piece.Location.File][piece.Location.Rank] = piece
+	}
+
+	return board
+}
+
+// BoardRankFile returns the game board in it's current state.
+// Access board contents with [rank][file]. Useful for printing
+// the board rank-by-rank.
+func (g *Game) BoardRankFile() [8][8]Piece {
+	board := [8][8]Piece{}
+	for _, piece := range g.AlivePieces(White) {
+		board[piece.Location.Rank][piece.Location.File] = piece
+	}
+	for _, piece := range g.AlivePieces(Black) {
+		board[piece.Location.Rank][piece.Location.File] = piece
 	}
 
 	return board

@@ -45,16 +45,16 @@ func (r *pgnReader) Read(b []byte) (n int, err error) {
 // the data in Forsyth-Edwards Notation.
 func FENReader(game *Game) io.Reader {
 
-	board := game.Board()
+	board := game.BoardRankFile()
 	history := game.History
 
 	var builder strings.Builder
 
 	// 1st field: board state
-	for file := 0; file < 8; file++ {
+	for rank := 7; rank >= 0; rank-- {
 		var emptySpots byte
-		for rank := 7; rank >= 0; rank-- {
-			p := board[file][rank]
+		for file := 0; file < 8; file++ {
+			p := board[rank][file]
 			if p.Type == None {
 				emptySpots++
 			} else {
@@ -71,6 +71,9 @@ func FENReader(game *Game) io.Reader {
 				builder.WriteByte(byte(name))
 			}
 		}
+		if emptySpots > 0 {
+			builder.WriteByte(emptySpots + '0')
+		}
 		builder.WriteByte('/')
 	}
 
@@ -86,27 +89,21 @@ func FENReader(game *Game) io.Reader {
 	builder.WriteByte(' ')
 
 	// third field: castling availability
+	canCastle := func(king Piece, rook int) bool {
+		r, ok := game.PieceAt(Space{File: rook, Rank: king.Location.Rank})
+		if !ok {
+			return false
+		}
+		return len(king.History(game)) == 0 && len(r.History(game)) == 0
+	}
+
 	bKing := game.TypedAlivePieces(Black, King)[0]
 	wKing := game.TypedAlivePieces(White, King)[0]
 	var bkCastle, bqCastle, wkCastle, wqCastle bool
-	for _, space := range bKing.Seeing(game) {
-		diff := bKing.Location.File - space.File
-		if diff == 2 {
-			bqCastle = true
-		}
-		if diff == -2 {
-			bkCastle = true
-		}
-	}
-	for _, space := range wKing.Seeing(game) {
-		diff := wKing.Location.File - space.File
-		if diff == 2 {
-			wqCastle = true
-		}
-		if diff == -2 {
-			wkCastle = true
-		}
-	}
+	bqCastle = canCastle(bKing, 0)
+	bkCastle = canCastle(bKing, 7)
+	wqCastle = canCastle(wKing, 0)
+	wkCastle = canCastle(wKing, 7)
 	if wkCastle {
 		builder.WriteByte('K')
 	}
@@ -119,7 +116,9 @@ func FENReader(game *Game) io.Reader {
 	if bqCastle {
 		builder.WriteByte('q')
 	}
-
+	if !wkCastle && !wqCastle && !bkCastle && !bqCastle {
+		builder.WriteByte('-')
+	}
 	builder.WriteByte(' ')
 
 	// fourth field: en passant square
@@ -136,7 +135,7 @@ func FENReader(game *Game) io.Reader {
 			}
 		}
 	}
-	if passant == Taken {
+	if passant != Taken {
 		builder.WriteString(passant.String())
 	} else {
 		builder.WriteByte('-')
@@ -149,7 +148,11 @@ func FENReader(game *Game) io.Reader {
 	builder.WriteByte(' ')
 
 	// sixth field: fullmove number
-	builder.WriteString(strconv.Itoa(len(history) - 1))
+	fullMove := strconv.Itoa(len(history))
+	if fullMove == "0" {
+		fullMove = "1"
+	}
+	builder.WriteString(fullMove)
 
 	return strings.NewReader(builder.String())
 }
