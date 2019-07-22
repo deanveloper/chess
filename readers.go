@@ -71,6 +71,7 @@ func FENReader(game *Game) io.Reader {
 				builder.WriteByte(byte(name))
 			}
 		}
+		builder.WriteByte('/')
 	}
 
 	builder.WriteByte(' ')
