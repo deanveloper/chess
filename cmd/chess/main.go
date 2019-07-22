@@ -24,89 +24,97 @@ func main() {
 		line := scan.Text()
 
 		fields := strings.Fields(line)
-		switch fields[0] {
-		case "move":
-			move := parseMove(game, fields[1], fields[2])
-			err := game.MakeMove(move)
-			if err != nil {
-				fmt.Println("Error making move:", err)
-				fmt.Print("> ")
-				continue
-			}
-		case "pieces":
-			fmt.Println("white:")
-			for _, piece := range game.AlivePieces(chess.White) {
-				fmt.Println("\t", piece)
-			}
-			fmt.Println("black:")
-			for _, piece := range game.AlivePieces(chess.Black) {
-				fmt.Println("\t", piece)
-			}
-		case "print":
-			board := rotate(game.Board())
-			for rank, rankSlice := range board {
 
-				const black, white = 5, 15
+		runCmd(game, fields)
 
-				fmt.Print("   ")
-
-				for file := 0; file < 8; file++ {
-					space := chess.Space{Rank: rank, File: file}
-					if space.Color() == chess.White {
-						fmt.Print(a.BgGray(white, "     "))
-					} else {
-						fmt.Print(a.BgGray(black, "     "))
-					}
-				}
-
-				fmt.Println()
-				fmt.Printf(" %d ", 8-rank)
-
-				for file, piece := range rankSlice {
-					space := chess.Space{Rank: rank, File: file}
-
-					var symbol a.Value
-					if piece.Color == chess.White {
-						symbol = a.White(string(piece.Type.Symbol()))
-					} else {
-						symbol = a.Black(string(piece.Type.Symbol()))
-					}
-
-					if space.Color() == chess.White {
-						fmt.Print(a.Sprintf(a.BgGray(white, "  %s  "), a.BgGray(white, symbol)))
-					} else {
-						fmt.Print(a.Sprintf(a.BgGray(black, "  %s  "), a.BgGray(black, symbol)))
-					}
-				}
-
-				fmt.Println()
-				fmt.Print("   ")
-
-				for file := 0; file < 8; file++ {
-					space := chess.Space{Rank: rank, File: file}
-					if space.Color() == chess.White {
-						fmt.Print(a.BgGray(white, "     "))
-					} else {
-						fmt.Print(a.BgGray(black, "     "))
-					}
-				}
-
-				fmt.Println()
-			}
-			fmt.Println("     a    b    c    d    e    f    g    h  ")
-		case "fen":
-			if len(fields) > 1 && fields[1] == "extended" {
-				fmt.Println(ioutil.ReadAll(chess.XFENReader(game)))
-			} else {
-				fmt.Println(ioutil.ReadAll(chess.FENReader(game)))
-			}
-		default:
-			fmt.Println("available commands:")
-			fmt.Println("move <from> <to>")
-			fmt.Println("fen [extended]")
-			fmt.Println("print")
-		}
 		fmt.Print("> ")
+	}
+}
+
+func runCmd(game *chess.Game, fields []string) {
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			fmt.Printf("panic: %v\n", rec)
+		}
+	}()
+
+	switch fields[0] {
+	case "move":
+		move := parseMove(game, fields[1:])
+		err := game.MakeMove(move)
+		if err != nil {
+			fmt.Println("Error making move:", err)
+			return
+		}
+	case "pieces":
+		fmt.Println("white:")
+		for _, piece := range game.AlivePieces(chess.White) {
+			fmt.Println("\t", piece)
+		}
+		fmt.Println("black:")
+		for _, piece := range game.AlivePieces(chess.Black) {
+			fmt.Println("\t", piece)
+		}
+	case "print":
+		board := rotate(game.Board())
+		for rank, rankSlice := range board {
+
+			const black, white = 5, 15
+
+			fmt.Print("   ")
+
+			for file := 0; file < 8; file++ {
+				space := chess.Space{Rank: rank, File: file}
+				if space.Color() == chess.White {
+					fmt.Print(a.BgGray(white, "     "))
+				} else {
+					fmt.Print(a.BgGray(black, "     "))
+				}
+			}
+
+			fmt.Println()
+			fmt.Printf(" %d ", 8-rank)
+
+			for file, piece := range rankSlice {
+				space := chess.Space{Rank: rank, File: file}
+
+				var symbol a.Value
+				if piece.Color == chess.White {
+					symbol = a.White(string(piece.Type.Symbol()))
+				} else {
+					symbol = a.Black(string(piece.Type.Symbol()))
+				}
+
+				if space.Color() == chess.White {
+					fmt.Print(a.Sprintf(a.BgGray(white, "  %s  "), a.BgGray(white, symbol)))
+				} else {
+					fmt.Print(a.Sprintf(a.BgGray(black, "  %s  "), a.BgGray(black, symbol)))
+				}
+			}
+
+			fmt.Println()
+			fmt.Print("   ")
+
+			for file := 0; file < 8; file++ {
+				space := chess.Space{Rank: rank, File: file}
+				if space.Color() == chess.White {
+					fmt.Print(a.BgGray(white, "     "))
+				} else {
+					fmt.Print(a.BgGray(black, "     "))
+				}
+			}
+
+			fmt.Println()
+		}
+		fmt.Println("     a    b    c    d    e    f    g    h  ")
+	case "fen":
+		fmt.Println(ioutil.ReadAll(chess.FENReader(game)))
+	default:
+		fmt.Println("available commands:")
+		fmt.Println("move <from> <to> [promotion]")
+		fmt.Println("fen")
+		fmt.Println("print")
 	}
 }
 
@@ -120,7 +128,17 @@ func rotate(board [8][8]chess.Piece) [8][8]chess.Piece {
 	return newBoard
 }
 
-func parseMove(g *chess.Game, from, to string) chess.Move {
+func parseMove(g *chess.Game, fields []string) chess.Move {
+
+	var from, to, promotion string
+
+	if len(fields) >= 2 {
+		from = fields[0]
+		to = fields[1]
+	}
+	if len(fields) >= 3 {
+		promotion = strings.ToLower(fields[3])
+	}
 
 	fromFile := int(from[0] - 'a')
 	toFile := int(to[0] - 'a')
@@ -132,8 +150,25 @@ func parseMove(g *chess.Game, from, to string) chess.Move {
 	if !ok {
 		panic("no piece at " + from)
 	}
-	return chess.Move{
-		Moving: piece,
-		To:     chess.Space{File: toFile, Rank: toRank},
+
+	pieces := map[string]chess.PieceType{
+		"rook":   chess.Rook,
+		"knight": chess.Knight,
+		"bishop": chess.Bishop,
+		"queen":  chess.Queen,
 	}
+
+	var move chess.Move
+	move.Moving = piece
+	move.To = chess.Space{File: toFile, Rank: toRank}
+
+	if typ, ok := pieces[promotion]; ok {
+		move.Promotion = typ
+	} else if promotion != "" {
+		fmt.Println("available promotions:")
+		fmt.Println("\trook, knight, bishop, queen")
+		fmt.Println("\tex: move a7 a8 queen")
+	}
+
+	return move
 }
