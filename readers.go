@@ -64,9 +64,9 @@ func FENReader(game *Game) io.Reader {
 				}
 				name := p.Type.ShortName()
 				if p.Color == Black {
-					name = unicode.ToUpper(name)
-				} else {
 					name = unicode.ToLower(name)
+				} else {
+					name = unicode.ToUpper(name)
 				}
 				builder.WriteByte(byte(name))
 			}
