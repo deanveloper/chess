@@ -82,7 +82,7 @@ func runCmd(game *chess.Game, fields []string) {
 			}
 
 			fmt.Println()
-			fmt.Printf(" %d ", 8-rank)
+			fmt.Printf(" %d ", rank)
 
 			for file, piece := range rankSlice {
 				space := chess.Space{Rank: rank, File: file}
