@@ -153,15 +153,15 @@ func runCmd(game *chess.Game, fields []string) {
 		difficulty := 20
 		var auto bool
 		if len(fields) >= 2 {
-			diff, err := strconv.Atoi(fields[1])
-			if err != nil {
-				fmt.Println("first arg to stockfish must be a number")
+			auto = (fields[1] == "auto")
+		}
+		if len(fields) >= 3 {
+			diff, err := strconv.Atoi(fields[2])
+			if err != nil || diff < 1 || diff > 20 {
+				fmt.Println("difficulty must be a number between 1 and 20")
 				return
 			}
 			difficulty = diff
-		}
-		if len(fields) >= 3 {
-			auto = (fields[2] == "auto")
 		}
 
 		fen, err := ioutil.ReadAll(chess.FENReader(game))
@@ -200,7 +200,7 @@ func runCmd(game *chess.Game, fields []string) {
 		fmt.Println("board")
 		fmt.Println("\toutputs the game on a human-readable board")
 		fmt.Println()
-		fmt.Println("stockfish [ELO=3000] [auto]")
+		fmt.Println("stockfish [auto] [difficulty=20]")
 		fmt.Println("\thas stockfish suggest a move. if `auto` is")
 		fmt.Println("\tset, stockfish will automatically run each time")
 		fmt.Println("\tit is the current color's turn.")
