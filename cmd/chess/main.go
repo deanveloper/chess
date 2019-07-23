@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
 
 	a "github.com/logrusorgru/aurora"
@@ -14,23 +15,36 @@ import (
 	"github.com/deanveloper/chess"
 )
 
-func main() {
+// the difficulty for each stockfish to run at. -1 if it shouldn't run
+var blackStockfish, whiteStockfish = -1, -1
 
-	scan := bufio.NewScanner(os.Stdin)
+func main() {
 
 	game := &chess.Game{}
 	game.Init()
 
-	fmt.Print("> ")
-	for scan.Scan() {
-		line := scan.Text()
+	var lines = make(chan string)
+	readLines(lines)
 
-		fields := strings.Fields(line)
-
-		runCmd(game, fields)
-
+	for {
 		fmt.Print("> ")
+		var line string
+		select {
+		case l := <-lines:
+			line = l
+		}
+		runCmd(game, strings.Fields(line))
 	}
+}
+
+// returns the lines as a channel of strings
+func readLines(ch chan<- string) {
+	go func() {
+		scan := bufio.NewScanner(os.Stdin)
+		for scan.Scan() {
+			ch <- scan.Text()
+		}
+	}()
 }
 
 func runCmd(game *chess.Game, fields []string) {
@@ -42,19 +56,28 @@ func runCmd(game *chess.Game, fields []string) {
 		}
 	}()
 
+	if len(fields) < 1 {
+		fields = []string{"help"}
+	}
+
 	switch fields[0] {
 	case "move":
-		move, err := parseMove(game, fields[1:])
+		if len(fields) < 2 {
+			fmt.Println("move syntax (uci):")
+			fmt.Println("move <from><to>[promotion]")
+			fmt.Println("\tex: `move e2e4` or `move a7a8q`")
+		}
+		move, err := parseMove(game, fields[1])
 		if err != nil {
-			fmt.Println("available promotions:")
-			fmt.Println("\trook, knight, bishop, queen")
-			fmt.Println("\tex: move a7 a8 queen")
+			fmt.Println("error:", err.Error())
 		}
 		err = game.MakeMove(move)
 		if err != nil {
 			fmt.Println("Error making move:", err)
 			return
 		}
+
+		autoStockfish(game)
 	case "pieces":
 		fmt.Println("white:")
 		for _, piece := range game.AlivePieces(chess.White) {
@@ -65,6 +88,9 @@ func runCmd(game *chess.Game, fields []string) {
 			fmt.Println("\t", piece)
 		}
 	case "print":
+		fmt.Println("`print` deprecated, renamed to `board`")
+		fallthrough
+	case "board":
 		board := game.BoardRankFile()
 		for rank := 7; rank >= 0; rank-- {
 			rankSlice := board[rank]
@@ -120,26 +146,115 @@ func runCmd(game *chess.Game, fields []string) {
 		all, err := ioutil.ReadAll(chess.FENReader(game))
 		if err != nil {
 			fmt.Println("error:", err)
+			return
 		}
 		fmt.Println(string(all))
+	case "stockfish":
+		difficulty := 20
+		var auto bool
+		if len(fields) >= 2 {
+			diff, err := strconv.Atoi(fields[1])
+			if err != nil {
+				fmt.Println("first arg to stockfish must be a number")
+				return
+			}
+			difficulty = diff
+		}
+		if len(fields) >= 3 {
+			auto = (fields[2] == "auto")
+		}
+
+		fen, err := ioutil.ReadAll(chess.FENReader(game))
+		if err != nil {
+			fmt.Println("error:", err)
+			return
+		}
+
+		fmt.Println("running stockfish...")
+		sfSuggest, err := runStockfish(string(fen), difficulty)
+
+		if auto {
+			if len(game.History)%2 == 0 {
+				whiteStockfish = difficulty
+			} else {
+				blackStockfish = difficulty
+			}
+			fmt.Println("stockfish plays " + sfSuggest)
+			runCmd(game, []string{"move", sfSuggest})
+		} else {
+			fmt.Println("stockfish suggests: " + sfSuggest)
+		}
+
 	default:
 		fmt.Println("available commands:")
-		fmt.Println("move <from> <to> [promotion]")
+		fmt.Println("move <from><to>[promotion]")
+		fmt.Println("\tmakes a move in the game")
+		fmt.Println("\tex: `move e2e4` or `move a7a8q`")
+		fmt.Println()
+		fmt.Println("pieces")
+		fmt.Println("\tlists remaining pieces in the game")
+		fmt.Println()
 		fmt.Println("fen")
-		fmt.Println("print")
+		fmt.Println("\toutputs the game state in FEN notation")
+		fmt.Println()
+		fmt.Println("board")
+		fmt.Println("\toutputs the game on a human-readable board")
+		fmt.Println()
+		fmt.Println("stockfish [ELO=3000] [auto]")
+		fmt.Println("\thas stockfish suggest a move. if `auto` is")
+		fmt.Println("\tset, stockfish will automatically run each time")
+		fmt.Println("\tit is the current color's turn.")
+		fmt.Println("\tex: `stockfish 20` (suggest a move)")
+		fmt.Println("\tex: `stockfish 10 auto` (play against stockfish)")
+		fmt.Println()
 	}
 }
 
-func parseMove(g *chess.Game, fields []string) (chess.Move, error) {
-
-	var from, to, promotion string
-
-	if len(fields) >= 2 {
-		from = fields[0]
-		to = fields[1]
+func autoStockfish(game *chess.Game) {
+	difficulty := -1
+	if len(game.History)%2 == 0 {
+		difficulty = whiteStockfish
+	} else {
+		difficulty = blackStockfish
 	}
-	if len(fields) >= 3 {
-		promotion = strings.ToLower(fields[2])
+
+	if difficulty == -1 {
+		return
+	}
+
+	fmt.Println("running stockfish...")
+
+	fen, err := ioutil.ReadAll(chess.FENReader(game))
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	moveS, err := runStockfish(string(fen), difficulty)
+	if err != nil {
+		fmt.Println("error running stockfish:", err)
+		return
+	}
+
+	fmt.Println("stockfish plays " + moveS)
+
+	runCmd(game, []string{"move", moveS})
+}
+
+func parseMove(g *chess.Game, uci string) (chess.Move, error) {
+
+	if len(uci) < 4 {
+		return chess.Move{}, xerrors.New("malformed move")
+	}
+
+	var from, to string
+	var promotion byte
+
+	if len(uci) >= 4 {
+		from = uci[0:2]
+		to = uci[2:4]
+	}
+	if len(uci) == 5 {
+		promotion = uci[4]
 	}
 
 	fromFile := int(from[0] - 'a')
@@ -153,11 +268,11 @@ func parseMove(g *chess.Game, fields []string) (chess.Move, error) {
 		return chess.Move{}, xerrors.New("no piece at " + from)
 	}
 
-	pieces := map[string]chess.PieceType{
-		"rook":   chess.Rook,
-		"knight": chess.Knight,
-		"bishop": chess.Bishop,
-		"queen":  chess.Queen,
+	pieces := map[byte]chess.PieceType{
+		'r': chess.Rook,
+		'n': chess.Knight,
+		'b': chess.Bishop,
+		'q': chess.Queen,
 	}
 
 	var move chess.Move
@@ -166,7 +281,7 @@ func parseMove(g *chess.Game, fields []string) (chess.Move, error) {
 
 	if typ, ok := pieces[promotion]; ok {
 		move.Promotion = typ
-	} else if promotion != "" {
+	} else if promotion != 0 {
 		return chess.Move{}, xerrors.New("promotion")
 	}
 
