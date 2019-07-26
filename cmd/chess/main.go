@@ -92,6 +92,11 @@ func runCmd(game *chess.Game, fields []string) {
 		fallthrough
 	case "board":
 		board := game.BoardRankFile()
+
+		if game.Turn() == chess.Black {
+			board = rotate(board)
+		}
+
 		for rank := 7; rank >= 0; rank-- {
 			rankSlice := board[rank]
 			const black, white = 5, 15
@@ -208,6 +213,16 @@ func runCmd(game *chess.Game, fields []string) {
 		fmt.Println("\tex: `stockfish 10 auto` (play against stockfish)")
 		fmt.Println()
 	}
+}
+
+func rotate(board [8][8]chess.Piece) [8][8]chess.Piece {
+	var newBoard [8][8]chess.Piece
+	for i, rank := range board {
+		for j := range rank {
+			newBoard[8-i][8-j] = board[i][j]
+		}
+	}
+	return newBoard
 }
 
 func autoStockfish(game *chess.Game) {
