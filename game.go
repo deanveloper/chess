@@ -54,6 +54,11 @@ func (g *Game) BoardRankFile() [8][8]Piece {
 	return board
 }
 
+// Turn returns who should move next.
+func (g *Game) Turn() Color {
+	return len(g.History) == 0
+}
+
 // returns a mutable slice of the pieces for a given color.
 // not exported because modifying this slice will modify the game.
 func (g *Game) pieces(c Color) []Piece {
