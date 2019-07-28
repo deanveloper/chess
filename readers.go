@@ -55,7 +55,7 @@ func FENReader(game *Game) io.Reader {
 		var emptySpots byte
 		for file := 0; file < 8; file++ {
 			p := board[rank][file]
-			if p.Type == None {
+			if p.Type == PieceNone {
 				emptySpots++
 			} else {
 				if emptySpots > 0 {
@@ -94,11 +94,11 @@ func FENReader(game *Game) io.Reader {
 		if !ok {
 			return false
 		}
-		return len(king.History(game)) == 0 && len(r.History(game)) == 0
+		return len(king.History()) == 0 && len(r.History()) == 0
 	}
 
-	bKing := game.TypedAlivePieces(Black, King)[0]
-	wKing := game.TypedAlivePieces(White, King)[0]
+	bKing := game.TypedAlivePieces(Black, PieceKing)[0]
+	wKing := game.TypedAlivePieces(White, PieceKing)[0]
 	var bkCastle, bqCastle, wkCastle, wqCastle bool
 	bqCastle = canCastle(bKing, 0)
 	bkCastle = canCastle(bKing, 7)
@@ -122,21 +122,8 @@ func FENReader(game *Game) io.Reader {
 	builder.WriteByte(' ')
 
 	// fourth field: en passant square
-	passant := Taken
-	if len(history) > 0 {
-		move := history[len(history)-1]
-		if move.Moving.Type == Pawn {
-			diff := move.Moving.Location.Rank - move.To.Rank
-			if diff == 2 || diff == -2 {
-				passant = Space{
-					File: move.To.File,
-					Rank: move.To.Rank - (diff / 2),
-				}
-			}
-		}
-	}
-	if passant != Taken {
-		builder.WriteString(passant.String())
+	if game.enPassant.Rank != 0 {
+		builder.WriteString(game.enPassant.String())
 	} else {
 		builder.WriteByte('-')
 	}

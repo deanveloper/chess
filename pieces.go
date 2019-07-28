@@ -25,13 +25,13 @@ func (c Color) String() string {
 
 // The enum of pieces
 const (
-	None PieceType = iota
-	Pawn
-	Rook
-	Knight
-	Bishop
-	Queen
-	King
+	PieceNone PieceType = iota
+	PiecePawn
+	PieceRook
+	PieceKnight
+	PieceBishop
+	PieceQueen
+	PieceKing
 )
 
 // PieceType represents a type of piece
@@ -53,6 +53,7 @@ func (p PieceType) String() string {
 
 // Piece represents a chess piece.
 type Piece struct {
+	Game     *Game
 	Type     PieceType
 	Location Space
 	Color    Color
@@ -63,13 +64,13 @@ func (p Piece) String() string {
 }
 
 // History returns all of the movement history that this piece has made.
-func (p Piece) History(g *Game) []Move {
+func (p Piece) History() []Move {
 	var trackedSpace = p.Location
 	var history []Move
 
 	// traverse backward through history
-	for i := len(g.History) - 1; i >= 0; i-- {
-		move := g.History[i]
+	for i := len(p.Game.History) - 1; i >= 0; i-- {
+		move := p.Game.History[i]
 		if trackedSpace == move.To {
 			history = append([]Move{move}, history...)
 		}
@@ -81,13 +82,13 @@ func (p Piece) History(g *Game) []Move {
 // Seeing returns all spaces that this piece can see. Just because
 // the piece can see a square does not mean the move is valid; as the
 // player may be in check, or moving the piece may put the player in check.
-func (p Piece) Seeing(g *Game) []Space {
+func (p Piece) Seeing() []Space {
 	var moveTo []Space
 
 	cur := p.Location
 
 	switch p.Type {
-	case Pawn:
+	case PiecePawn:
 		// allow moving one up if there is not a piece there
 		next := p.Location
 		if p.Color == Black {
@@ -95,20 +96,20 @@ func (p Piece) Seeing(g *Game) []Space {
 		} else {
 			next.Rank++
 		}
-		if _, ok := g.PieceAt(next); !ok {
+		if _, ok := p.Game.PieceAt(next); !ok {
 			moveTo = append(moveTo, next)
 		}
 
 		// if unmoved, allow moving two up
-		if len(p.History(g)) == 0 {
+		if len(p.History()) == 0 {
 			twoUp := next
 			if p.Color == Black {
 				twoUp.Rank--
 			} else {
 				twoUp.Rank++
 			}
-			if _, ok := g.PieceAt(next); !ok {
-				if _, ok2 := g.PieceAt(twoUp); !ok2 {
+			if _, ok := p.Game.PieceAt(next); !ok {
+				if _, ok2 := p.Game.PieceAt(twoUp); !ok2 {
 					moveTo = append(moveTo, twoUp)
 				}
 			}
@@ -117,22 +118,22 @@ func (p Piece) Seeing(g *Game) []Space {
 		// allow diagonals if it can take
 		diagL := Space{Rank: next.Rank, File: next.File - 1}
 		diagR := Space{Rank: next.Rank, File: next.File + 1}
-		if _, ok := g.PieceAt(diagL); ok {
+		if _, ok := p.Game.PieceAt(diagL); ok {
 			moveTo = append(moveTo, diagL)
 		}
-		if _, ok := g.PieceAt(diagR); ok {
+		if _, ok := p.Game.PieceAt(diagR); ok {
 			moveTo = append(moveTo, diagR)
 		}
 
 		// include possibility of en passant
-		if len(g.History) > 0 {
+		if len(p.Game.History) > 0 {
 			var validRank int
 			if p.Color == Black {
 				validRank = 3
 			} else {
 				validRank = 4
 			}
-			lastMove := g.History[len(g.History)-1]
+			lastMove := p.Game.History[len(p.Game.History)-1]
 			if lastMove.To.Rank == validRank && p.Location.Rank == validRank {
 				lastOpposingLoc := lastMove.Moving.Location
 				switch {
@@ -144,20 +145,20 @@ func (p Piece) Seeing(g *Game) []Space {
 			}
 		}
 
-	case Rook:
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+	case PieceRook:
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File + 1, Rank: s.Rank}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File - 1, Rank: s.Rank}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File, Rank: s.Rank - 1}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File, Rank: s.Rank + 1}
 		})...)
-	case Knight:
+	case PieceKnight:
 		moveTo = []Space{
 			Space{File: cur.File + 1, Rank: cur.Rank + 2},
 			Space{File: cur.File + 2, Rank: cur.Rank + 1},
@@ -168,45 +169,45 @@ func (p Piece) Seeing(g *Game) []Space {
 			Space{File: cur.File - 1, Rank: cur.Rank - 2},
 			Space{File: cur.File - 2, Rank: cur.Rank - 1},
 		}
-	case Bishop:
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+	case PieceBishop:
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File + 1, Rank: s.Rank + 1}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File + 1, Rank: s.Rank - 1}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File - 1, Rank: s.Rank + 1}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File - 1, Rank: s.Rank - 1}
 		})...)
-	case Queen:
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+	case PieceQueen:
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File + 1, Rank: s.Rank}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File - 1, Rank: s.Rank}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File, Rank: s.Rank - 1}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File, Rank: s.Rank + 1}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File + 1, Rank: s.Rank + 1}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File + 1, Rank: s.Rank - 1}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File - 1, Rank: s.Rank + 1}
 		})...)
-		moveTo = append(moveTo, p.loop(g, func(s Space) Space {
+		moveTo = append(moveTo, p.loop(func(s Space) Space {
 			return Space{File: s.File - 1, Rank: s.Rank - 1}
 		})...)
-	case King:
+	case PieceKing:
 		// invalid spaces and spaces with own color's pieces
 		// are removed later
 		moveTo = []Space{
@@ -221,16 +222,21 @@ func (p Piece) Seeing(g *Game) []Space {
 		}
 
 		// castling:
-		if len(p.History(g)) > 0 {
+		if len(p.History()) > 0 {
 			break
 		}
-		if qRook, ok := g.PieceAt(Space{File: 0, Rank: cur.Rank}); ok {
-			if qRook.Type == Rook && len(qRook.History(g)) == 0 {
+		if p.Color == White {
+			if p.Game.castles.WhiteQueen {
 				moveTo = append(moveTo, Space{File: 2, Rank: cur.Rank})
 			}
-		}
-		if kRook, ok := g.PieceAt(Space{File: 7, Rank: cur.Rank}); ok {
-			if kRook.Type == Rook && len(kRook.History(g)) == 0 {
+			if p.Game.castles.WhiteKing {
+				moveTo = append(moveTo, Space{File: 6, Rank: cur.Rank})
+			}
+		} else {
+			if p.Game.castles.BlackQueen {
+				moveTo = append(moveTo, Space{File: 2, Rank: cur.Rank})
+			}
+			if p.Game.castles.BlackKing {
 				moveTo = append(moveTo, Space{File: 6, Rank: cur.Rank})
 			}
 		}
@@ -244,7 +250,7 @@ func (p Piece) Seeing(g *Game) []Space {
 		if !s.Valid() {
 			continue
 		}
-		if other, ok := g.PieceAt(s); ok && other.Color == p.Color {
+		if other, ok := p.Game.PieceAt(s); ok && other.Color == p.Color {
 			continue
 		}
 		sees = append(sees, s)
@@ -254,26 +260,47 @@ func (p Piece) Seeing(g *Game) []Space {
 }
 
 // LegalMoves returns all of the legal moves for p.
-func (p Piece) LegalMoves(g *Game) []Space {
+func (p Piece) LegalMoves() []Space {
 	var legal []Space
 
-	for _, space := range p.Seeing(g) {
+	for _, space := range p.Seeing() {
 
 		// special case - remove castles if in check or the
 		// middle square of the castle puts you in check
-		if p.Type == King {
+		if p.Type == PieceKing {
 			diff := p.Location.File - space.File
+
+			// remove ability if pieces are between the rook and king
+			if diff == -2 {
+				if p := p.Game.board[1][p.Location.Rank]; p.Type != PieceNone {
+					continue
+				}
+				if p := p.Game.board[2][p.Location.Rank]; p.Type != PieceNone {
+					continue
+				}
+				if p := p.Game.board[3][p.Location.Rank]; p.Type != PieceNone {
+					continue
+				}
+			}
+			if diff == 2 {
+				if p := p.Game.board[5][p.Location.Rank]; p.Type != PieceNone {
+					continue
+				}
+				if p := p.Game.board[6][p.Location.Rank]; p.Type != PieceNone {
+					continue
+				}
+			}
 
 			// no castling at all while in check
 			if diff == -2 || diff == 2 {
-				if g.InCheck(p.Color) {
+				if p.Game.InCheck(p.Color) {
 					continue
 				}
 			}
 
 			// queen-side castle
 			if diff == -2 {
-				clone := g.Clone(false)
+				clone := p.Game.Clone(false)
 				clone.makeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 3, Rank: p.Location.Rank},
@@ -282,7 +309,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 					continue
 				}
 
-				clone = g.Clone(false)
+				clone = p.Game.Clone(false)
 				clone.makeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 2, Rank: p.Location.Rank},
@@ -293,7 +320,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 			}
 			// king-side castle
 			if diff == 2 {
-				clone := g.Clone(false)
+				clone := p.Game.Clone(false)
 				clone.makeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 5, Rank: p.Location.Rank},
@@ -302,7 +329,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 					continue
 				}
 
-				clone = g.Clone(false)
+				clone = p.Game.Clone(false)
 				clone.makeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 6, Rank: p.Location.Rank},
@@ -313,7 +340,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 			}
 		}
 
-		newG := g.Clone(false)
+		newG := p.Game.Clone(false)
 		newG.makeMoveUnconditionally(Move{
 			Moving: p,
 			To:     space,
@@ -325,7 +352,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 	return legal
 }
 
-func (p Piece) loop(g *Game, next func(Space) Space) []Space {
+func (p Piece) loop(next func(Space) Space) []Space {
 	var spaces []Space
 
 	cur := p.Location
@@ -337,7 +364,7 @@ func (p Piece) loop(g *Game, next func(Space) Space) []Space {
 
 		spaces = append(spaces, cur)
 
-		if _, ok := g.PieceAt(cur); ok {
+		if _, ok := p.Game.PieceAt(cur); ok {
 			break
 		}
 	}

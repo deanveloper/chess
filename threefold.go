@@ -1,7 +1,7 @@
 package chess
 
 type threeFoldEntry struct {
-	pieces         [32]Piece
+	board          [8][8]Piece
 	canPassant     bool
 	canQueenCastle bool
 	canKingCastle  bool
@@ -12,8 +12,7 @@ type threeFoldTracker map[threeFoldEntry]int
 // creates a threeFoldEntry for the current state of g
 func (t threeFoldTracker) addToTracker(g *Game) {
 	var entry threeFoldEntry
-	copy(entry.pieces[0:16], g.white[:])
-	copy(entry.pieces[16:32], g.black[:])
+	entry.board = g.board
 
 	if len(g.History) == 0 {
 		return
@@ -23,28 +22,14 @@ func (t threeFoldTracker) addToTracker(g *Game) {
 	player := lastMove.Moving.Color
 
 	// check for en passant
-	for _, pawn := range g.TypedAlivePieces(player.Other(), Pawn) {
-		for _, space := range pawn.Seeing(g) {
-			if space.File-pawn.Location.File == 0 {
-				continue
-			}
-			if _, ok := g.PieceAt(space); !ok {
-				entry.canPassant = true
-				break
-			}
-		}
-	}
+	entry.canPassant = g.enPassant.Rank != 0
 
 	// check for castle
-	king := g.TypedAlivePieces(player.Other(), King)[0]
-	for _, space := range king.Seeing(g) {
-		fileDiff := space.File - king.Location.File
-		if fileDiff == 1 || fileDiff == 0 {
-			continue
-		}
-		if _, ok := g.PieceAt(space); !ok {
-			entry.canPassant = true
-			break
-		}
+	if player == Black {
+		entry.canKingCastle = g.castles.BlackKing
+		entry.canQueenCastle = g.castles.BlackQueen
+	} else {
+		entry.canKingCastle = g.castles.WhiteKing
+		entry.canQueenCastle = g.castles.WhiteQueen
 	}
 }

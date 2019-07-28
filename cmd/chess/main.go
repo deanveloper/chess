@@ -15,39 +15,24 @@ import (
 	"github.com/deanveloper/chess"
 )
 
-// the difficulty for each stockfish to run at. -1 if it shouldn't run
-var blackStockfish, whiteStockfish = -1, -1
+var blackAuto [][]string
+var whiteAuto [][]string
 
 func main() {
-
 	game := &chess.Game{}
-	game.Init()
+	game.InitClassic()
 
-	var lines = make(chan string)
-	readLines(lines)
+	scan := bufio.NewScanner(os.Stdin)
 
-	for {
+	fmt.Print("> ")
+	for scan.Scan() {
+		runCmd(game, strings.Fields(strings.TrimSpace(scan.Text())))
 		fmt.Print("> ")
-		var line string
-		select {
-		case l := <-lines:
-			line = l
-		}
-		runCmd(game, strings.Fields(line))
 	}
 }
 
-// returns the lines as a channel of strings
-func readLines(ch chan<- string) {
-	go func() {
-		scan := bufio.NewScanner(os.Stdin)
-		for scan.Scan() {
-			ch <- scan.Text()
-		}
-	}()
-}
-
-func runCmd(game *chess.Game, fields []string) {
+// TODO modularize this
+func runCmd(game *chess.Game, fields []string) bool {
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -61,23 +46,58 @@ func runCmd(game *chess.Game, fields []string) {
 	}
 
 	switch fields[0] {
+	case "auto":
+		if len(fields) < 2 {
+			fmt.Println("command auto:")
+			fmt.Println("\truns the command immediately AND at the start of the current player's every turn")
+			fmt.Println("\tsyntax: auto [command]")
+			fmt.Println("\tex: `auto board` (automatically print board before your turn)")
+			fmt.Println("\tex: `auto stockfish move` (automatically have stockfish move on this turn)")
+			return false
+		}
+		var turn = game.Turn()
+		var autos *[][]string
+		if turn == chess.Black {
+			autos = &blackAuto
+		} else {
+			autos = &whiteAuto
+		}
+
+		if runCmd(game, fields[1:]) {
+			*autos = append(*autos, fields[1:])
+			fmt.Printf("%v will now run before %v plays", strings.Join(fields[1:], " "), turn)
+		}
+
 	case "move":
 		if len(fields) < 2 {
-			fmt.Println("move syntax (uci):")
-			fmt.Println("move <from><to>[promotion]")
+			fmt.Println("command move:")
+			fmt.Println("\tmakes a move using uci notation")
+			fmt.Println("\tsyntax: move <from><to>[promotion]")
 			fmt.Println("\tex: `move e2e4` or `move a7a8q`")
+			return false
 		}
 		move, err := parseMove(game, fields[1])
 		if err != nil {
 			fmt.Println("error:", err.Error())
+			return false
 		}
 		err = game.MakeMove(move)
 		if err != nil {
-			fmt.Println("Error making move:", err)
-			return
+			fmt.Println("error:", err)
+			return false
 		}
 
-		autoStockfish(game)
+		var cmds [][]string
+		if game.Turn().Other() == chess.Black {
+			cmds = blackAuto
+		} else {
+			cmds = whiteAuto
+		}
+
+		// run auto commands for next player
+		for _, cmd := range cmds {
+			runCmd(game, cmd)
+		}
 	case "pieces":
 		fmt.Println("white:")
 		for _, piece := range game.AlivePieces(chess.White) {
@@ -93,8 +113,10 @@ func runCmd(game *chess.Game, fields []string) {
 	case "board":
 		board := game.BoardRankFile()
 
+		var rotated bool
 		if game.Turn() == chess.Black {
 			board = rotate(board)
+			rotated = true
 		}
 
 		for rank := 7; rank >= 0; rank-- {
@@ -113,7 +135,11 @@ func runCmd(game *chess.Game, fields []string) {
 			}
 
 			fmt.Println()
-			fmt.Printf(" %d ", rank)
+			if rotated {
+				fmt.Printf(" %d ", 8-rank)
+			} else {
+				fmt.Printf(" %d ", rank+1)
+			}
 
 			for file, piece := range rankSlice {
 				space := chess.Space{Rank: rank, File: file}
@@ -146,25 +172,25 @@ func runCmd(game *chess.Game, fields []string) {
 
 			fmt.Println()
 		}
-		fmt.Println("     a    b    c    d    e    f    g    h  ")
+		if rotated {
+			fmt.Println("     h    g    f    e    d    c    b    a  ")
+		} else {
+			fmt.Println("     a    b    c    d    e    f    g    h  ")
+		}
 	case "fen":
 		all, err := ioutil.ReadAll(chess.FENReader(game))
 		if err != nil {
 			fmt.Println("error:", err)
-			return
+			return false
 		}
 		fmt.Println(string(all))
 	case "stockfish":
 		difficulty := 20
-		var auto bool
-		if len(fields) >= 2 {
-			auto = (fields[1] == "auto")
-		}
 		if len(fields) >= 3 {
 			diff, err := strconv.Atoi(fields[2])
 			if err != nil || diff < 1 || diff > 20 {
 				fmt.Println("difficulty must be a number between 1 and 20")
-				return
+				return false
 			}
 			difficulty = diff
 		}
@@ -172,18 +198,13 @@ func runCmd(game *chess.Game, fields []string) {
 		fen, err := ioutil.ReadAll(chess.FENReader(game))
 		if err != nil {
 			fmt.Println("error:", err)
-			return
+			return false
 		}
 
 		fmt.Println("running stockfish...")
 		sfSuggest, err := runStockfish(string(fen), difficulty)
 
-		if auto {
-			if len(game.History)%2 == 0 {
-				whiteStockfish = difficulty
-			} else {
-				blackStockfish = difficulty
-			}
+		if len(fields) >= 2 && fields[1] == "move" {
 			fmt.Println("stockfish plays " + sfSuggest)
 			runCmd(game, []string{"move", sfSuggest})
 		} else {
@@ -191,9 +212,15 @@ func runCmd(game *chess.Game, fields []string) {
 		}
 
 	default:
+		fmt.Printf("unknown command: %q\n", fields)
 		fmt.Println("available commands:")
+		fmt.Println("syntax: auto [command]")
+		fmt.Println("\truns the command immediately AND at the start of the current player's every turn")
+		fmt.Println("\tex: `auto board` (automatically print board before your turn)")
+		fmt.Println("\tex: `auto stockfish move` (automatically have stockfish move on this turn)")
+		fmt.Println()
 		fmt.Println("move <from><to>[promotion]")
-		fmt.Println("\tmakes a move in the game")
+		fmt.Println("\tmakes a move using uci notation")
 		fmt.Println("\tex: `move e2e4` or `move a7a8q`")
 		fmt.Println()
 		fmt.Println("pieces")
@@ -205,54 +232,26 @@ func runCmd(game *chess.Game, fields []string) {
 		fmt.Println("board")
 		fmt.Println("\toutputs the game on a human-readable board")
 		fmt.Println()
-		fmt.Println("stockfish [auto] [difficulty=20]")
-		fmt.Println("\thas stockfish suggest a move. if `auto` is")
-		fmt.Println("\tset, stockfish will automatically run each time")
+		fmt.Println("stockfish [move [difficulty=20]]")
+		fmt.Println("\thas stockfish suggest a move. if `move` is")
+		fmt.Println("\tset, stockfish will make the move as well")
 		fmt.Println("\tit is the current color's turn.")
-		fmt.Println("\tex: `stockfish 20` (suggest a move)")
-		fmt.Println("\tex: `stockfish 10 auto` (play against stockfish)")
+		fmt.Println("\tex: `stockfish` (suggest a move)")
+		fmt.Println("\tex: `stockfish move 10` (play against stockfish level 10)")
 		fmt.Println()
+		return false
 	}
+	return true
 }
 
 func rotate(board [8][8]chess.Piece) [8][8]chess.Piece {
 	var newBoard [8][8]chess.Piece
 	for i, rank := range board {
 		for j := range rank {
-			newBoard[8-i][8-j] = board[i][j]
+			newBoard[7-i][7-j] = board[i][j]
 		}
 	}
 	return newBoard
-}
-
-func autoStockfish(game *chess.Game) {
-	difficulty := -1
-	if len(game.History)%2 == 0 {
-		difficulty = whiteStockfish
-	} else {
-		difficulty = blackStockfish
-	}
-
-	if difficulty == -1 {
-		return
-	}
-
-	fmt.Println("running stockfish...")
-
-	fen, err := ioutil.ReadAll(chess.FENReader(game))
-	if err != nil {
-		fmt.Println("error:", err)
-		return
-	}
-	moveS, err := runStockfish(string(fen), difficulty)
-	if err != nil {
-		fmt.Println("error running stockfish:", err)
-		return
-	}
-
-	fmt.Println("stockfish plays " + moveS)
-
-	runCmd(game, []string{"move", moveS})
 }
 
 func parseMove(g *chess.Game, uci string) (chess.Move, error) {
@@ -284,10 +283,10 @@ func parseMove(g *chess.Game, uci string) (chess.Move, error) {
 	}
 
 	pieces := map[byte]chess.PieceType{
-		'r': chess.Rook,
-		'n': chess.Knight,
-		'b': chess.Bishop,
-		'q': chess.Queen,
+		'r': chess.PieceRook,
+		'n': chess.PieceKnight,
+		'b': chess.PieceBishop,
+		'q': chess.PieceQueen,
 	}
 
 	var move chess.Move
