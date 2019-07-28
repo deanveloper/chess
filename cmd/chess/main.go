@@ -13,6 +13,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/deanveloper/chess"
+	"github.com/deanveloper/chess/chesscodec"
 )
 
 var blackAuto [][]string
@@ -178,7 +179,7 @@ func runCmd(game *chess.Game, fields []string) bool {
 			fmt.Println("     a    b    c    d    e    f    g    h  ")
 		}
 	case "fen":
-		all, err := ioutil.ReadAll(chess.FENReader(game))
+		all, err := ioutil.ReadAll(chesscodec.FENReader(game))
 		if err != nil {
 			fmt.Println("error:", err)
 			return false

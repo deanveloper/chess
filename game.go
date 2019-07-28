@@ -9,9 +9,9 @@ type castlingRights struct {
 type Game struct {
 	// stored in [file][rank] form
 	board         [8][8]Piece
-	enPassant     Space
-	castles       castlingRights
-	halfmoveClock int
+	Castles       castlingRights
+	EnPassant     Space
+	HalfmoveClock int
 
 	History []Move
 }
@@ -20,9 +20,9 @@ type Game struct {
 func (g *Game) Clone(withHistory bool) *Game {
 	var newG = &Game{
 		board:         g.board,
-		enPassant:     g.enPassant,
-		castles:       g.castles,
-		halfmoveClock: g.halfmoveClock,
+		EnPassant:     g.EnPassant,
+		Castles:       g.Castles,
+		HalfmoveClock: g.HalfmoveClock,
 	}
 	for i, file := range g.board {
 		for j, piece := range file {
@@ -148,7 +148,7 @@ func (g *Game) CanDraw() bool {
 	color := g.History[len(g.History)-1].Moving.Color
 
 	// 50 move rule
-	if g.halfmoveClock >= 50 && !g.InCheckmate(color.Other()) {
+	if g.HalfmoveClock >= 50 && !g.InCheckmate(color.Other()) {
 		return true
 	}
 
@@ -241,7 +241,7 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 	}
 
 	// handle en passant
-	if m.Moving.Type == PiecePawn && m.To == g.enPassant {
+	if m.Moving.Type == PiecePawn && m.To == g.EnPassant {
 		deadSpace := Space{File: m.To.File, Rank: m.Moving.Location.Rank}
 		g.board[deadSpace.File][deadSpace.Rank] = Piece{}
 	}
@@ -253,26 +253,26 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 	// update castling rights
 	switch m.Moving.Location {
 	case Space{File: 0, Rank: 0}:
-		g.castles.WhiteQueen = false
+		g.Castles.WhiteQueen = false
 	case Space{File: 7, Rank: 0}:
-		g.castles.WhiteKing = false
+		g.Castles.WhiteKing = false
 	case Space{File: 0, Rank: 7}:
-		g.castles.BlackQueen = false
+		g.Castles.BlackQueen = false
 	case Space{File: 7, Rank: 7}:
-		g.castles.BlackKing = false
+		g.Castles.BlackKing = false
 	case Space{File: 4, Rank: 0}:
-		g.castles.WhiteKing = false
-		g.castles.WhiteQueen = false
+		g.Castles.WhiteKing = false
+		g.Castles.WhiteQueen = false
 	case Space{File: 4, Rank: 7}:
-		g.castles.BlackKing = false
-		g.castles.BlackQueen = false
+		g.Castles.BlackKing = false
+		g.Castles.BlackQueen = false
 	}
 
 	// update halfmove clock
 	if pieceTaken || m.Moving.Type == PiecePawn {
-		g.halfmoveClock = 0
+		g.HalfmoveClock = 0
 	} else {
-		g.halfmoveClock++
+		g.HalfmoveClock++
 	}
 
 	// update history

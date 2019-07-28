@@ -22,14 +22,14 @@ func (t threeFoldTracker) addToTracker(g *Game) {
 	player := lastMove.Moving.Color
 
 	// check for en passant
-	entry.canPassant = g.enPassant.Rank != 0
+	entry.canPassant = g.EnPassant.Rank != 0
 
 	// check for castle
 	if player == Black {
-		entry.canKingCastle = g.castles.BlackKing
-		entry.canQueenCastle = g.castles.BlackQueen
+		entry.canKingCastle = g.Castles.BlackKing
+		entry.canQueenCastle = g.Castles.BlackQueen
 	} else {
-		entry.canKingCastle = g.castles.WhiteKing
-		entry.canQueenCastle = g.castles.WhiteQueen
+		entry.canKingCastle = g.Castles.WhiteKing
+		entry.canQueenCastle = g.Castles.WhiteQueen
 	}
 }

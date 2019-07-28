@@ -226,17 +226,17 @@ func (p Piece) Seeing() []Space {
 			break
 		}
 		if p.Color == White {
-			if p.Game.castles.WhiteQueen {
+			if p.Game.Castles.WhiteQueen {
 				moveTo = append(moveTo, Space{File: 2, Rank: cur.Rank})
 			}
-			if p.Game.castles.WhiteKing {
+			if p.Game.Castles.WhiteKing {
 				moveTo = append(moveTo, Space{File: 6, Rank: cur.Rank})
 			}
 		} else {
-			if p.Game.castles.BlackQueen {
+			if p.Game.Castles.BlackQueen {
 				moveTo = append(moveTo, Space{File: 2, Rank: cur.Rank})
 			}
-			if p.Game.castles.BlackKing {
+			if p.Game.Castles.BlackKing {
 				moveTo = append(moveTo, Space{File: 6, Rank: cur.Rank})
 			}
 		}
