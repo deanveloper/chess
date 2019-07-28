@@ -80,7 +80,7 @@ func FENReader(game *Game) io.Reader {
 	builder.WriteByte(' ')
 
 	// second field: player to move
-	if len(history)%2 == 0 {
+	if game.Turn() == White {
 		builder.WriteByte('w')
 	} else {
 		builder.WriteByte('b')
@@ -89,34 +89,24 @@ func FENReader(game *Game) io.Reader {
 	builder.WriteByte(' ')
 
 	// third field: castling availability
-	canCastle := func(king Piece, rook int) bool {
-		r, ok := game.PieceAt(Space{File: rook, Rank: king.Location.Rank})
-		if !ok {
-			return false
-		}
-		return len(king.History()) == 0 && len(r.History()) == 0
-	}
-
-	bKing := game.TypedAlivePieces(Black, PieceKing)[0]
-	wKing := game.TypedAlivePieces(White, PieceKing)[0]
-	var bkCastle, bqCastle, wkCastle, wqCastle bool
-	bqCastle = canCastle(bKing, 0)
-	bkCastle = canCastle(bKing, 7)
-	wqCastle = canCastle(wKing, 0)
-	wkCastle = canCastle(wKing, 7)
-	if wkCastle {
+	var any bool
+	if game.castles.WhiteKing {
 		builder.WriteByte('K')
+		any = true
 	}
-	if wqCastle {
+	if game.castles.WhiteQueen {
 		builder.WriteByte('Q')
+		any = true
 	}
-	if bkCastle {
+	if game.castles.BlackKing {
 		builder.WriteByte('k')
+		any = true
 	}
-	if bqCastle {
+	if game.castles.BlackQueen {
 		builder.WriteByte('q')
+		any = true
 	}
-	if !wkCastle && !wqCastle && !bkCastle && !bqCastle {
+	if !any {
 		builder.WriteByte('-')
 	}
 	builder.WriteByte(' ')
