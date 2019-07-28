@@ -33,7 +33,7 @@ func runStockfish(fen string, difficulty int) (string, error) {
 		return fields[1], nil
 	}
 	if scanner.Err() != nil {
-		return "", xerrors.Errorf("error while running stockfish: %w", scanner.Err())
+		return "", xerrors.Errorf("error while running stockfish: %w (stockfish not installed?)", scanner.Err())
 	}
 
 	cmd.Wait()
