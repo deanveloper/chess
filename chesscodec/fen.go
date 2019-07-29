@@ -4,7 +4,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/deanveloper/chess"
 )
@@ -14,7 +13,6 @@ import (
 func FENReader(game *chess.Game) io.Reader {
 
 	board := game.BoardRankFile()
-	history := game.History
 
 	var builder strings.Builder
 
@@ -32,9 +30,7 @@ func FENReader(game *chess.Game) io.Reader {
 				}
 				name := p.Type.ShortName()
 				if p.Color == chess.Black {
-					name = unicode.ToLower(name)
-				} else {
-					name = unicode.ToUpper(name)
+					name = name - 'A' + 'a' // lowercase
 				}
 				builder.WriteByte(byte(name))
 			}
@@ -89,15 +85,15 @@ func FENReader(game *chess.Game) io.Reader {
 	builder.WriteByte(' ')
 
 	// fifth field: halfmove clock
-	builder.WriteString(strconv.Itoa(game.HalfmoveClock))
+	builder.WriteString(strconv.Itoa(game.Halfmove))
 	builder.WriteByte(' ')
 
 	// sixth field: fullmove number
-	fullMove := strconv.Itoa(len(history))
-	if fullMove == "0" {
-		fullMove = "1"
+	fullMove := game.Fullmove
+	if fullMove == 0 {
+		fullMove = 1
 	}
-	builder.WriteString(fullMove)
+	builder.WriteString(strconv.Itoa(fullMove))
 
 	return strings.NewReader(builder.String())
 }
