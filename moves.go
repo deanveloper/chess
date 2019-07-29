@@ -25,7 +25,8 @@ func (m Move) AlgebraicShort() (string, error) {
 
 	var builder strings.Builder
 
-	// detect castle, uses a `goto` to skip all the standard move notation
+	// detect castle, uses a `goto` to skip all the standard move notation...
+	// please don't get mad at me for using a goto...
 	diff := to.File - from.File
 	if diff == -2 {
 		builder.WriteString("O-O-O")
@@ -89,6 +90,7 @@ checkDetect:
 	if err != nil {
 		return "", err
 	}
+
 	if nextState.InCheck(player.Other()) {
 		builder.WriteByte('+')
 	}
