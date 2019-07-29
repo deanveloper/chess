@@ -43,8 +43,8 @@ func (p PieceType) Symbol() rune {
 }
 
 // ShortName returns the shortname for p used by Forsyth-Edwards Notation.
-func (p PieceType) ShortName() rune {
-	return [...]rune{'X', 'P', 'R', 'N', 'B', 'Q', 'K'}[p]
+func (p PieceType) ShortName() byte {
+	return [...]byte{'X', 'P', 'R', 'N', 'B', 'Q', 'K'}[p]
 }
 
 func (p PieceType) String() string {
@@ -61,22 +61,6 @@ type Piece struct {
 
 func (p Piece) String() string {
 	return fmt.Sprintf("%v %v on %v", p.Color, p.Type, p.Location)
-}
-
-// History returns all of the movement history that this piece has made.
-func (p Piece) History() []Move {
-	var trackedSpace = p.Location
-	var history []Move
-
-	// traverse backward through history
-	for i := len(p.Game.History) - 1; i >= 0; i-- {
-		move := p.Game.History[i]
-		if trackedSpace == move.To {
-			history = append([]Move{move}, history...)
-		}
-	}
-
-	return history
 }
 
 // Seeing returns all spaces that this piece can see. Just because
@@ -101,7 +85,7 @@ func (p Piece) Seeing() []Space {
 		}
 
 		// if unmoved, allow moving two up
-		if len(p.History()) == 0 {
+		if (p.Color == White && cur.Rank == 1) || (p.Color == Black && cur.Rank == 6) {
 			twoUp := next
 			if p.Color == Black {
 				twoUp.Rank--
@@ -126,23 +110,8 @@ func (p Piece) Seeing() []Space {
 		}
 
 		// include possibility of en passant
-		if len(p.Game.History) > 0 {
-			var validRank int
-			if p.Color == Black {
-				validRank = 3
-			} else {
-				validRank = 4
-			}
-			lastMove := p.Game.History[len(p.Game.History)-1]
-			if lastMove.To.Rank == validRank && p.Location.Rank == validRank {
-				lastOpposingLoc := lastMove.Moving.Location
-				switch {
-				case p.Color == Black && lastOpposingLoc.Rank == 1:
-					moveTo = append(moveTo, Space{Rank: 2, File: lastOpposingLoc.File})
-				case p.Color == White && lastOpposingLoc.Rank == 6:
-					moveTo = append(moveTo, Space{Rank: 5, File: lastOpposingLoc.File})
-				}
-			}
+		if diagL == p.Game.EnPassant || diagR == p.Game.EnPassant {
+			moveTo = append(moveTo, p.Game.EnPassant)
 		}
 
 	case PieceRook:
@@ -222,9 +191,6 @@ func (p Piece) Seeing() []Space {
 		}
 
 		// castling:
-		if len(p.History()) > 0 {
-			break
-		}
 		if p.Color == White {
 			if p.Game.Castles.WhiteQueen {
 				moveTo = append(moveTo, Space{File: 2, Rank: cur.Rank})
@@ -300,7 +266,7 @@ func (p Piece) LegalMoves() []Space {
 
 			// queen-side castle
 			if diff == -2 {
-				clone := p.Game.Clone(false)
+				clone := p.Game.Clone()
 				clone.makeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 3, Rank: p.Location.Rank},
@@ -309,7 +275,7 @@ func (p Piece) LegalMoves() []Space {
 					continue
 				}
 
-				clone = p.Game.Clone(false)
+				clone = p.Game.Clone()
 				clone.makeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 2, Rank: p.Location.Rank},
@@ -320,7 +286,7 @@ func (p Piece) LegalMoves() []Space {
 			}
 			// king-side castle
 			if diff == 2 {
-				clone := p.Game.Clone(false)
+				clone := p.Game.Clone()
 				clone.makeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 5, Rank: p.Location.Rank},
@@ -329,7 +295,7 @@ func (p Piece) LegalMoves() []Space {
 					continue
 				}
 
-				clone = p.Game.Clone(false)
+				clone = p.Game.Clone()
 				clone.makeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 6, Rank: p.Location.Rank},
@@ -340,7 +306,7 @@ func (p Piece) LegalMoves() []Space {
 			}
 		}
 
-		newG := p.Game.Clone(false)
+		newG := p.Game.Clone()
 		newG.makeMoveUnconditionally(Move{
 			Moving: p,
 			To:     space,

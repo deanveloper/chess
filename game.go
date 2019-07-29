@@ -8,21 +8,20 @@ type castlingRights struct {
 // Game represents a game of chess
 type Game struct {
 	// stored in [file][rank] form
-	board         [8][8]Piece
-	Castles       castlingRights
-	EnPassant     Space
-	HalfmoveClock int
-
-	History []Move
+	board     [8][8]Piece
+	Castles   castlingRights
+	EnPassant Space
+	Halfmove  int
+	Fullmove  int
 }
 
 // Clone returns a new instance of `g`.
-func (g *Game) Clone(withHistory bool) *Game {
+func (g *Game) Clone() *Game {
 	var newG = &Game{
-		board:         g.board,
-		EnPassant:     g.EnPassant,
-		Castles:       g.Castles,
-		HalfmoveClock: g.HalfmoveClock,
+		board:     g.board,
+		EnPassant: g.EnPassant,
+		Castles:   g.Castles,
+		Halfmove:  g.Halfmove,
 	}
 	for i, file := range g.board {
 		for j, piece := range file {
@@ -30,10 +29,6 @@ func (g *Game) Clone(withHistory bool) *Game {
 			newPiece.Game = newG
 			newG.board[i][j] = newPiece
 		}
-	}
-	if withHistory {
-		newG.History = make([]Move, len(g.History), len(g.History)+1)
-		copy(newG.History, g.History)
 	}
 	return newG
 }
@@ -62,7 +57,7 @@ func (g *Game) BoardRankFile() [8][8]Piece {
 
 // Turn returns who should move next.
 func (g *Game) Turn() Color {
-	return len(g.History)%2 == 0
+	return g.Fullmove%2 == 0
 }
 
 // TypedAlivePieces returns all of c's alive pieces with PieceType t.
@@ -141,14 +136,12 @@ func (g *Game) InStalemate(c Color) bool {
 // (to draw via threefold repetition, the last position played
 // must have been played at least 2 other times).
 func (g *Game) CanDraw() bool {
-	if len(g.History) < 5 {
+	if g.Fullmove < 5 {
 		return false
 	}
 
-	color := g.History[len(g.History)-1].Moving.Color
-
 	// 50 move rule
-	if g.HalfmoveClock >= 50 && !g.InCheckmate(color.Other()) {
+	if g.Halfmove >= 50 && !g.InCheckmate(g.Turn()) {
 		return true
 	}
 
@@ -270,13 +263,10 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 
 	// update halfmove clock
 	if pieceTaken || m.Moving.Type == PiecePawn {
-		g.HalfmoveClock = 0
+		g.Halfmove = 0
 	} else {
-		g.HalfmoveClock++
+		g.Halfmove++
 	}
-
-	// update history
-	g.History = append(g.History, m)
 }
 
 // MakeMove makes a move in the game, or returns an error if the move is not possible.
@@ -284,7 +274,7 @@ func (g *Game) MakeMove(m Move) error {
 
 	// check to make sure correct color is moving
 	var colorToMove Color
-	if len(g.History)%2 == 0 {
+	if g.Turn() == White {
 		colorToMove = White
 	} else {
 		colorToMove = Black
