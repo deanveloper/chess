@@ -1,4 +1,4 @@
-package chesscodec
+package encoder
 
 import (
 	"fmt"
