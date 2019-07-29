@@ -13,8 +13,10 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/deanveloper/chess"
-	"github.com/deanveloper/chess/chesscodec"
+	"github.com/deanveloper/chess/encoder"
 )
+
+var history []chess.Move
 
 var blackAuto [][]string
 var whiteAuto [][]string
@@ -43,7 +45,7 @@ func runCmd(game *chess.Game, fields []string) bool {
 	}()
 
 	if len(fields) < 1 {
-		fields = []string{"help"}
+		return true
 	}
 
 	switch fields[0] {
@@ -66,7 +68,7 @@ func runCmd(game *chess.Game, fields []string) bool {
 
 		if runCmd(game, fields[1:]) {
 			*autos = append(*autos, fields[1:])
-			fmt.Printf("%v will now run before %v plays", strings.Join(fields[1:], " "), turn)
+			fmt.Printf("%v will now run before %v plays\n", strings.Join(fields[1:], " "), turn)
 		}
 
 	case "move":
@@ -87,9 +89,10 @@ func runCmd(game *chess.Game, fields []string) bool {
 			fmt.Println("error:", err)
 			return false
 		}
+		history = append(history, move)
 
 		var cmds [][]string
-		if game.Turn().Other() == chess.Black {
+		if game.Turn() == chess.Black {
 			cmds = blackAuto
 		} else {
 			cmds = whiteAuto
@@ -179,7 +182,14 @@ func runCmd(game *chess.Game, fields []string) bool {
 			fmt.Println("     a    b    c    d    e    f    g    h  ")
 		}
 	case "fen":
-		all, err := ioutil.ReadAll(chesscodec.FENReader(game))
+		all, err := ioutil.ReadAll(encoder.FENReader(game))
+		if err != nil {
+			fmt.Println("error:", err)
+			return false
+		}
+		fmt.Println(string(all))
+	case "pgn":
+		all, err := ioutil.ReadAll(encoder.PGNReader(nil, history))
 		if err != nil {
 			fmt.Println("error:", err)
 			return false
@@ -196,7 +206,7 @@ func runCmd(game *chess.Game, fields []string) bool {
 			difficulty = diff
 		}
 
-		fen, err := ioutil.ReadAll(chess.FENReader(game))
+		fen, err := ioutil.ReadAll(encoder.FENReader(game))
 		if err != nil {
 			fmt.Println("error:", err)
 			return false
@@ -229,6 +239,9 @@ func runCmd(game *chess.Game, fields []string) bool {
 		fmt.Println()
 		fmt.Println("fen")
 		fmt.Println("\toutputs the game state in FEN notation")
+		fmt.Println()
+		fmt.Println("pgn")
+		fmt.Println("\toutputs the game in PGN notation")
 		fmt.Println()
 		fmt.Println("board")
 		fmt.Println("\toutputs the game on a human-readable board")
@@ -291,6 +304,7 @@ func parseMove(g *chess.Game, uci string) (chess.Move, error) {
 	}
 
 	var move chess.Move
+	move.Snapshot = *g
 	move.Moving = piece
 	move.To = chess.Space{File: toFile, Rank: toRank}
 

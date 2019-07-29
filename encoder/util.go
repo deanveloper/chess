@@ -6,8 +6,8 @@ import (
 	"github.com/deanveloper/chess"
 )
 
-// AlgebraicShort returns the short algebraic notation for this move.
-func AlgebraicShort(m chess.Move) (string, error) {
+// algShort returns the short algebraic notation for this move.
+func algShort(m chess.Move) (string, error) {
 
 	game := m.Snapshot
 	player := m.Moving.Color

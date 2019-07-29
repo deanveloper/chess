@@ -261,7 +261,8 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 		g.Castles.BlackQueen = false
 	}
 
-	// update halfmove clock
+	// update move counts
+	g.Fullmove++
 	if pieceTaken || m.Moving.Type == PiecePawn {
 		g.Halfmove = 0
 	} else {

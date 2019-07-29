@@ -10,10 +10,8 @@ import (
 
 // PGNReader returns a reader for a game that
 // reads the data into PGN notation.
-func PGNReader(game *chess.Game, tags map[string]string) io.Reader {
-	return &pgnReader{
-		game: game,
-	}
+func PGNReader(tags map[string]string, moves []chess.Move) io.Reader {
+	return io.MultiReader(tagsReader(tags), &moveTextReader{moves: moves})
 }
 
 func tagsReader(tags map[string]string) io.Reader {
@@ -28,6 +26,8 @@ func tagsReader(tags map[string]string) io.Reader {
 		if val, ok := clonedTags[key]; ok {
 			builder.WriteString(fullTag(key, val))
 			delete(clonedTags, key)
+		} else {
+			builder.WriteString(fullTag(key, "omitted"))
 		}
 	}
 	for key, val := range clonedTags {
@@ -37,22 +37,54 @@ func tagsReader(tags map[string]string) io.Reader {
 	return strings.NewReader(builder.String())
 }
 
-func fullTag(key, value string) string {
-	value = strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(value)
-	return fmt.Sprintf(`[%s "%s"]\n`, key, value)
+type moveTextReader struct {
+	moves []chess.Move
+
+	moveIndex int
+	strIndex  int
+
+	err error
 }
 
-type pgnReader struct {
-	game *chess.Game
-
-	bytesRead int
-	err       error
-}
-
-func (r *pgnReader) Read(b []byte) (n int, err error) {
+func (r *moveTextReader) Read(b []byte) (int, error) {
 	if r.err != nil {
 		return 0, r.err
 	}
 
-	return 0, nil
+	var bytesRead int
+
+	for n := len(b); n > 0; {
+		move := r.moves[r.moveIndex]
+		alg, err := algShort(move)
+		if err != nil {
+			r.err = err
+			return bytesRead, err
+		}
+		if r.moveIndex%2 == 0 {
+			alg = fmt.Sprintf("%d. %s", r.moveIndex/2+1, alg)
+		}
+		if r.moveIndex < len(r.moves)-1 {
+			alg += " "
+		}
+
+		copied := copy(b, alg[r.strIndex:])
+		n -= copied
+		r.strIndex += copied
+		bytesRead += copied
+
+		if r.strIndex == len(alg) {
+			r.moveIndex++
+			r.strIndex = 0
+		}
+		if len(r.moves) == r.moveIndex {
+			return bytesRead, io.EOF
+		}
+	}
+
+	return bytesRead, nil
+}
+
+func fullTag(key, value string) string {
+	value = strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(value)
+	return fmt.Sprintf(`[%s "%s"]\n`, key, value)
 }
