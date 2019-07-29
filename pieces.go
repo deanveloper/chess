@@ -231,8 +231,7 @@ func (p Piece) LegalMoves() []Space {
 
 	for _, space := range p.Seeing() {
 
-		// special case - remove castles if in check or the
-		// middle square of the castle puts you in check
+		// special case - remove castles in their cases
 		if p.Type == PieceKing {
 			diff := p.Location.File - space.File
 
@@ -308,12 +307,14 @@ func (p Piece) LegalMoves() []Space {
 
 		newG := p.Game.Clone()
 		newG.makeMoveUnconditionally(Move{
-			Moving: p,
-			To:     space,
+			Snapshot: *newG,
+			Moving:   p,
+			To:       space,
 		})
 		if newG.InCheck(p.Color) {
 			continue
 		}
+		legal = append(legal, space)
 	}
 	return legal
 }

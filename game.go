@@ -273,17 +273,10 @@ func (g *Game) makeMoveUnconditionally(m Move) {
 // MakeMove makes a move in the game, or returns an error if the move is not possible.
 func (g *Game) MakeMove(m Move) error {
 
-	// check to make sure correct color is moving
-	var colorToMove Color
-	if g.Turn() == White {
-		colorToMove = White
-	} else {
-		colorToMove = Black
-	}
-	if m.Moving.Color != colorToMove {
+	if m.Moving.Color != g.Turn() {
 		return &MoveError{
 			Cause:  m,
-			Reason: "it is " + colorToMove.String() + "'s turn",
+			Reason: "it is " + g.Turn().String() + "'s turn",
 		}
 	}
 	// check if the move is valid
@@ -306,6 +299,11 @@ func (g *Game) MakeMove(m Move) error {
 		switch m.Promotion {
 		case PieceRook, PieceKnight, PieceBishop, PieceQueen:
 			break
+		case PieceNone:
+			return &MoveError{
+				Cause:  m,
+				Reason: "must specify what to promote pawn to",
+			}
 		default:
 			return &MoveError{
 				Cause:  m,
@@ -319,15 +317,15 @@ func (g *Game) MakeMove(m Move) error {
 		}
 	}
 
-	var inCheck bool
+	var legal bool
 	legalMoves := m.Moving.LegalMoves()
 	for _, s := range legalMoves {
 		if m.To == s {
-			inCheck = true
+			legal = true
 			break
 		}
 	}
-	if inCheck {
+	if !legal {
 		return &MoveError{
 			Cause:   m,
 			Reason:  "player is in check",
@@ -383,7 +381,12 @@ func slicesEqual(a []Space, b []Space) bool {
 	return true
 }
 
-// InitClassic initializes a Game object to a classic chess layout,
+// InitCustom initializes g to a custom chess layout
+func (g *Game) InitCustom(pieces [8][8]Piece) {
+	*g = Game{board: pieces}
+}
+
+// InitClassic initializes g to a classic chess layout,
 func (g *Game) InitClassic() {
 	*g = Game{}
 	rank := [8]PieceType{

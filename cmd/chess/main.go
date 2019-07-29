@@ -49,6 +49,30 @@ func runCmd(game *chess.Game, fields []string) bool {
 	}
 
 	switch fields[0] {
+	case "debug":
+		game.InitCustom([8][8]chess.Piece{{chess.Piece{}, chess.Piece{}, chess.Piece{}, chess.Piece{}, chess.Piece{}, chess.Piece{},
+			chess.Piece{
+				Game:     game,
+				Type:     chess.PiecePawn,
+				Color:    chess.White,
+				Location: chess.Space{File: 0, Rank: 6},
+			},
+			chess.Piece{
+				Game:     game,
+				Type:     chess.PieceKing,
+				Color:    chess.White,
+				Location: chess.Space{File: 0, Rank: 7},
+			},
+		}, {},
+			{
+				chess.Piece{
+					Game:     game,
+					Type:     chess.PieceKing,
+					Color:    chess.Black,
+					Location: chess.Space{File: 2, Rank: 0},
+				},
+			},
+		})
 	case "auto":
 		if len(fields) < 2 {
 			fmt.Println("command auto:")
