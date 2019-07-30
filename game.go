@@ -10,10 +10,17 @@ type Game struct {
 	// stored in [file][rank] form
 	board [8][8]Piece
 
-	Castles   castlingRights
+	// which castles are still possible
+	Castles castlingRights
+
+	// the target square to move if en passant is possible
 	EnPassant Space
-	Halfmove  int
-	Fullmove  int
+
+	// the number of moves since the last capture / pawn move
+	Halfmove int
+
+	// the number of total moves in the game so far
+	Fullmove int
 }
 
 // Clone returns a new instance of `g`.
