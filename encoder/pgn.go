@@ -54,6 +54,10 @@ func (r *moveTextReader) Read(b []byte) (int, error) {
 	var bytesRead int
 
 	for n := len(b); n > 0; {
+		if r.moveIndex >= len(r.moves) {
+			return bytesRead, io.EOF
+		}
+
 		move := r.moves[r.moveIndex]
 		alg, err := algShort(move)
 		if err != nil {
@@ -67,7 +71,7 @@ func (r *moveTextReader) Read(b []byte) (int, error) {
 			alg += " "
 		}
 
-		copied := copy(b, alg[r.strIndex:])
+		copied := copy(b[bytesRead:], alg[r.strIndex:])
 		n -= copied
 		r.strIndex += copied
 		bytesRead += copied
@@ -76,9 +80,6 @@ func (r *moveTextReader) Read(b []byte) (int, error) {
 			r.moveIndex++
 			r.strIndex = 0
 		}
-		if len(r.moves) == r.moveIndex {
-			return bytesRead, io.EOF
-		}
 	}
 
 	return bytesRead, nil
@@ -86,5 +87,5 @@ func (r *moveTextReader) Read(b []byte) (int, error) {
 
 func fullTag(key, value string) string {
 	value = strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(value)
-	return fmt.Sprintf(`[%s "%s"]\n`, key, value)
+	return fmt.Sprintf(`[%s "%s"]`+"\n", key, value)
 }
