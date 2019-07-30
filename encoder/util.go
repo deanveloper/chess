@@ -78,10 +78,7 @@ func algShort(m chess.Move) (string, error) {
 checkDetect:
 	// in check/mate
 	nextState := m.Snapshot.Clone()
-	err := nextState.MakeMove(m)
-	if err != nil {
-		return "", err
-	}
+	nextState.MakeMoveUnconditionally(m)
 
 	if nextState.InCheck(player.Other()) {
 		builder.WriteByte('+')
