@@ -8,7 +8,8 @@ type castlingRights struct {
 // Game represents a game of chess
 type Game struct {
 	// stored in [file][rank] form
-	board     [8][8]Piece
+	board [8][8]Piece
+
 	Castles   castlingRights
 	EnPassant Space
 	Halfmove  int
