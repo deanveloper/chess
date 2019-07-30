@@ -278,7 +278,9 @@ func (g *Game) CanDraw() bool {
 	return true
 }
 
-func (g *Game) makeMoveUnconditionally(m Move) {
+// MakeMoveUnconditionally makes a move regardless
+// of if it should be allowed or not.
+func (g *Game) MakeMoveUnconditionally(m Move) {
 
 	var pieceTaken bool
 
@@ -390,7 +392,7 @@ func (g *Game) MakeMove(m Move) error {
 	}
 
 	// make the move
-	g.makeMoveUnconditionally(m)
+	g.MakeMoveUnconditionally(m)
 
 	// move rook in castles
 	if m.Moving.Type == King {
@@ -398,14 +400,14 @@ func (g *Game) MakeMove(m Move) error {
 
 		if diff == -2 {
 			rook, _ := g.PieceAt(Space{File: 0, Rank: m.To.Rank})
-			g.makeMoveUnconditionally(Move{
+			g.MakeMoveUnconditionally(Move{
 				Moving: rook,
 				To:     Space{File: 3, Rank: m.To.Rank},
 			})
 		}
 		if diff == 2 {
 			rook, _ := g.PieceAt(Space{File: 7, Rank: m.To.Rank})
-			g.makeMoveUnconditionally(Move{
+			g.MakeMoveUnconditionally(Move{
 				Moving: rook,
 				To:     Space{File: 5, Rank: m.To.Rank},
 			})

@@ -274,7 +274,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 			// queen-side castle
 			if diff == -2 {
 				clone := g.Clone(false)
-				clone.makeMoveUnconditionally(Move{
+				clone.MakeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 3, Rank: p.Location.Rank},
 				})
@@ -283,7 +283,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 				}
 
 				clone = g.Clone(false)
-				clone.makeMoveUnconditionally(Move{
+				clone.MakeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 2, Rank: p.Location.Rank},
 				})
@@ -294,7 +294,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 			// king-side castle
 			if diff == 2 {
 				clone := g.Clone(false)
-				clone.makeMoveUnconditionally(Move{
+				clone.MakeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 5, Rank: p.Location.Rank},
 				})
@@ -303,7 +303,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 				}
 
 				clone = g.Clone(false)
-				clone.makeMoveUnconditionally(Move{
+				clone.MakeMoveUnconditionally(Move{
 					Moving: p,
 					To:     Space{File: 6, Rank: p.Location.Rank},
 				})
@@ -314,7 +314,7 @@ func (p Piece) LegalMoves(g *Game) []Space {
 		}
 
 		newG := g.Clone(false)
-		newG.makeMoveUnconditionally(Move{
+		newG.MakeMoveUnconditionally(Move{
 			Moving: p,
 			To:     space,
 		})
