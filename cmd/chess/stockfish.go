@@ -17,6 +17,8 @@ func runStockfish(fen string, difficulty int) (string, error) {
 	out, _ := cmd.StdoutPipe()
 
 	cmd.Start()
+	defer cmd.Process.Release()
+
 	in.Write([]byte("setoption name Skill Level value " + strconv.Itoa(difficulty) + "\n"))
 	in.Write([]byte("position fen " + fen + "\n"))
 	in.Write([]byte("go movetime 3000\n"))
@@ -33,7 +35,7 @@ func runStockfish(fen string, difficulty int) (string, error) {
 		return fields[1], nil
 	}
 	if scanner.Err() != nil {
-		return "", xerrors.Errorf("error while running stockfish: %w", scanner.Err())
+		return "", xerrors.Errorf("error while running stockfish: %w (stockfish not installed?)", scanner.Err())
 	}
 
 	cmd.Wait()

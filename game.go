@@ -1,25 +1,34 @@
 package chess
 
+type castlingRights struct {
+	BlackKing, BlackQueen bool
+	WhiteKing, WhiteQueen bool
+}
+
 // Game represents a game of chess
 type Game struct {
-	white [16]Piece
-	black [16]Piece
-
-	halfmoveClock int
-
-	History []Move
+	// stored in [file][rank] form
+	board     [8][8]Piece
+	Castles   castlingRights
+	EnPassant Space
+	Halfmove  int
+	Fullmove  int
 }
 
 // Clone returns a new instance of `g`.
-func (g *Game) Clone(withHistory bool) *Game {
+func (g *Game) Clone() *Game {
 	var newG = &Game{
-		white:         g.white,
-		black:         g.black,
-		halfmoveClock: g.halfmoveClock,
+		board:     g.board,
+		EnPassant: g.EnPassant,
+		Castles:   g.Castles,
+		Halfmove:  g.Halfmove,
 	}
-	if withHistory {
-		newG.History = make([]Move, len(g.History), len(g.History)+1)
-		copy(newG.History, g.History)
+	for i, file := range g.board {
+		for j, piece := range file {
+			newPiece := piece
+			newPiece.Game = newG
+			newG.board[i][j] = newPiece
+		}
 	}
 	return newG
 }
@@ -28,27 +37,19 @@ func (g *Game) Clone(withHistory bool) *Game {
 // Access board contents with [file][rank]. Useful for determining
 // the position of pieces.
 func (g *Game) BoardFileRank() [8][8]Piece {
-	board := [8][8]Piece{}
-	for _, piece := range g.AlivePieces(White) {
-		board[piece.Location.File][piece.Location.Rank] = piece
-	}
-	for _, piece := range g.AlivePieces(Black) {
-		board[piece.Location.File][piece.Location.Rank] = piece
-	}
-
-	return board
+	return g.board
 }
 
 // BoardRankFile returns the game board in it's current state.
 // Access board contents with [rank][file]. Useful for printing
 // the board rank-by-rank.
 func (g *Game) BoardRankFile() [8][8]Piece {
-	board := [8][8]Piece{}
-	for _, piece := range g.AlivePieces(White) {
-		board[piece.Location.Rank][piece.Location.File] = piece
-	}
-	for _, piece := range g.AlivePieces(Black) {
-		board[piece.Location.Rank][piece.Location.File] = piece
+	var board [8][8]Piece
+
+	for i, rank := range g.board {
+		for j, piece := range rank {
+			board[j][i] = piece
+		}
 	}
 
 	return board
@@ -56,34 +57,15 @@ func (g *Game) BoardRankFile() [8][8]Piece {
 
 // Turn returns who should move next.
 func (g *Game) Turn() Color {
-	return len(g.History) == 0
-}
-
-// returns a mutable slice of the pieces for a given color.
-// not exported because modifying this slice will modify the game.
-func (g *Game) pieces(c Color) []Piece {
-	var color []Piece
-	if c == Black {
-		color = g.black[:]
-	} else {
-		color = g.white[:]
-	}
-
-	return color
+	return g.Fullmove%2 == 0
 }
 
 // TypedAlivePieces returns all of c's alive pieces with PieceType t.
 func (g *Game) TypedAlivePieces(c Color, t PieceType) []Piece {
-	var color [16]Piece
-	if c == Black {
-		color = g.black
-	} else {
-		color = g.white
-	}
-	pieces := make([]Piece, 0, len(color))
+	pieces := make([]Piece, 0, 16)
 
-	for _, p := range color {
-		if p.Location != Taken && p.Type == t {
+	for _, p := range g.AlivePieces(c) {
+		if p.Type == t {
 			pieces = append(pieces, p)
 		}
 	}
@@ -91,80 +73,44 @@ func (g *Game) TypedAlivePieces(c Color, t PieceType) []Piece {
 	return pieces
 }
 
-// AlivePieces returns the pieces that c has on the board. Modifying this slice
-// has no impact on the game.
+// AlivePieces returns the pieces that c has on the board.
 func (g *Game) AlivePieces(c Color) []Piece {
+	pieces := make([]Piece, 0, 16)
 
-	var color [16]Piece
-	if c == Black {
-		color = g.black
-	} else {
-		color = g.white
-	}
-	pieces := make([]Piece, 0, len(color))
-
-	for _, p := range color {
-		if p.Location != Taken {
-			pieces = append(pieces, p)
+	for _, file := range g.board {
+		for _, piece := range file {
+			if piece.Type != PieceNone && piece.Color == c {
+				pieces = append(pieces, piece)
+			}
 		}
 	}
 
 	return pieces
-}
-
-// TakenPieces returns the pieces that c no longer has on the board. Modifying this slice
-// has no impact on the game.
-func (g *Game) TakenPieces(c Color) []Piece {
-
-	var color [16]Piece
-	if c == Black {
-		color = g.black
-	} else {
-		color = g.white
-	}
-
-	taken := make([]Piece, 0, len(color))
-
-	for _, p := range color {
-		if p.Location == Taken {
-			taken = append(taken, p)
-		}
-	}
-
-	return taken
 }
 
 // PieceAt returns the piece at a given space, and an `ok`
 // boolean on if there was a piece on that space at all.
 func (g *Game) PieceAt(s Space) (Piece, bool) {
-	for _, p := range g.white {
-		if p.Location == s {
-			return p, true
-		}
+	if !s.Valid() {
+		return Piece{}, false
 	}
-	for _, p := range g.black {
-		if p.Location == s {
-			return p, true
-		}
+
+	piece := g.board[s.File][s.Rank]
+	if piece.Type == PieceNone {
+		return Piece{}, false
 	}
-	return Piece{}, false
+
+	return piece, true
 }
 
 // InCheck returns if `c` is in check.
 func (g *Game) InCheck(c Color) bool {
-	pieces := g.AlivePieces(c)
 
-	var king Piece
-	for _, piece := range pieces {
-		if piece.Type == King {
-			king = piece
-			break
-		}
-	}
+	king := g.TypedAlivePieces(c, PieceKing)[0]
 
-	oPieces := g.AlivePieces(c)
+	oPieces := g.AlivePieces(c.Other())
 	for _, piece := range oPieces {
-		seeing := piece.Seeing(g)
+		seeing := piece.Seeing()
 		for _, sees := range seeing {
 			if sees == king.Location {
 				return true
@@ -172,10 +118,6 @@ func (g *Game) InCheck(c Color) bool {
 		}
 	}
 
-	return false
-}
-
-func (g *Game) canSee(c Color, s Space) bool {
 	return false
 }
 
@@ -194,14 +136,12 @@ func (g *Game) InStalemate(c Color) bool {
 // (to draw via threefold repetition, the last position played
 // must have been played at least 2 other times).
 func (g *Game) CanDraw() bool {
-	if len(g.History) < 5 {
+	if g.Fullmove < 5 {
 		return false
 	}
 
-	color := g.History[len(g.History)-1].Moving.Color
-
 	// 50 move rule
-	if g.halfmoveClock >= 50 && !g.InCheckmate(color.Other()) {
+	if g.Halfmove >= 50 && !g.InCheckmate(g.Turn()) {
 		return true
 	}
 
@@ -217,20 +157,20 @@ func (g *Game) CanDraw() bool {
 	// king/(bishop|knight) vs king
 	if len(whiteAlive) == 2 && len(blackAlive) == 1 {
 		switch {
-		case whiteAlive[0].Type == Bishop,
-			whiteAlive[0].Type == Knight,
-			whiteAlive[1].Type == Bishop,
-			whiteAlive[1].Type == Knight:
+		case whiteAlive[0].Type == PieceBishop,
+			whiteAlive[0].Type == PieceKnight,
+			whiteAlive[1].Type == PieceBishop,
+			whiteAlive[1].Type == PieceKnight:
 
 			return true
 		}
 	}
 	if len(whiteAlive) == 1 && len(blackAlive) == 2 {
 		switch {
-		case blackAlive[0].Type == Bishop,
-			blackAlive[0].Type == Knight,
-			blackAlive[1].Type == Bishop,
-			blackAlive[1].Type == Knight:
+		case blackAlive[0].Type == PieceBishop,
+			blackAlive[0].Type == PieceKnight,
+			blackAlive[1].Type == PieceBishop,
+			blackAlive[1].Type == PieceKnight:
 
 			return true
 		}
@@ -242,7 +182,7 @@ func (g *Game) CanDraw() bool {
 
 	// white bishops
 	for _, piece := range whiteAlive {
-		if piece.Type == Bishop {
+		if piece.Type == PieceBishop {
 			if bishops == 0 {
 				bishopColor = piece.Location.Color()
 			} else {
@@ -260,7 +200,7 @@ func (g *Game) CanDraw() bool {
 	bishops = 0
 	// black bishops
 	for _, piece := range blackAlive {
-		if piece.Type == Bishop {
+		if piece.Type == PieceBishop {
 			if bishops == 0 {
 				bishopColor = piece.Location.Color()
 			} else {
@@ -284,67 +224,67 @@ func (g *Game) MakeMoveUnconditionally(m Move) {
 
 	var pieceTaken bool
 
-	player := m.Moving.Color
-	pieces := g.pieces(player)
-	otherPieces := g.pieces(player.Other())
+	var target *Piece
+	target = &g.board[m.To.File][m.To.Rank]
 
-	for i, piece := range pieces {
-		if piece.Location == m.Moving.Location {
-			pieces[i].Location = m.To
-			if m.Promotion != None {
-				pieces[i].Type = m.Promotion
-			}
-		}
+	// update piece
+	*target = m.Moving
+	target.Location = m.To
+
+	// update piece type for promotions
+	if m.Promotion != PieceNone {
+		target.Type = m.Promotion
 	}
 
-	takingSpace := m.To
-
-	// en passant:
-	// if the moving pawn moved into an empty space
-	if _, ok := g.PieceAt(m.To); !ok && m.Moving.Type == Pawn {
-		fileDiff := m.Moving.Location.File - m.To.File
-		rankDiff := m.Moving.Location.Rank - m.To.Rank
-		// if the moving pawn moved diagonally
-		if (fileDiff == 1 || fileDiff == -1) && (rankDiff == 1 || rankDiff == -1) {
-			takingSpace = Space{File: m.To.File, Rank: m.Moving.Location.Rank}
-		}
+	// handle en passant
+	if m.Moving.Type == PiecePawn && m.To == g.EnPassant {
+		deadSpace := Space{File: m.To.File, Rank: m.Moving.Location.Rank}
+		g.board[deadSpace.File][deadSpace.Rank] = Piece{}
 	}
 
-	for i, piece := range otherPieces {
-		if piece.Location == takingSpace {
-			otherPieces[i].Location = Taken
-			pieceTaken = true
-		}
-	}
-	g.History = append(g.History, m)
+	// update where piece came from
+	from := m.Moving.Location
+	g.board[from.File][from.Rank] = Piece{}
 
-	// update draw detectors
-	if pieceTaken || m.Moving.Type == Pawn {
-		g.halfmoveClock = 0
+	// update castling rights
+	switch m.Moving.Location {
+	case Space{File: 0, Rank: 0}:
+		g.Castles.WhiteQueen = false
+	case Space{File: 7, Rank: 0}:
+		g.Castles.WhiteKing = false
+	case Space{File: 0, Rank: 7}:
+		g.Castles.BlackQueen = false
+	case Space{File: 7, Rank: 7}:
+		g.Castles.BlackKing = false
+	case Space{File: 4, Rank: 0}:
+		g.Castles.WhiteKing = false
+		g.Castles.WhiteQueen = false
+	case Space{File: 4, Rank: 7}:
+		g.Castles.BlackKing = false
+		g.Castles.BlackQueen = false
+	}
+
+	// update move counts
+	g.Fullmove++
+	if pieceTaken || m.Moving.Type == PiecePawn {
+		g.Halfmove = 0
 	} else {
-		g.halfmoveClock++
+		g.Halfmove++
 	}
 }
 
 // MakeMove makes a move in the game, or returns an error if the move is not possible.
 func (g *Game) MakeMove(m Move) error {
 
-	// check to make sure correct color is moving
-	var colorToMove Color
-	if len(g.History)%2 == 0 {
-		colorToMove = White
-	} else {
-		colorToMove = Black
-	}
-	if m.Moving.Color != colorToMove {
+	if m.Moving.Color != g.Turn() {
 		return &MoveError{
 			Cause:  m,
-			Reason: "it is " + colorToMove.String() + "'s turn",
+			Reason: "it is " + g.Turn().String() + "'s turn",
 		}
 	}
 	// check if the move is valid
 	var validMove bool
-	seeing := m.Moving.Seeing(g)
+	seeing := m.Moving.Seeing()
 	for _, s := range seeing {
 		if m.To == s {
 			validMove = true
@@ -358,32 +298,37 @@ func (g *Game) MakeMove(m Move) error {
 		}
 	}
 
-	if m.Moving.Type == Pawn && (m.To.Rank == 0 || m.To.Rank == 7) {
+	if m.Moving.Type == PiecePawn && (m.To.Rank == 0 || m.To.Rank == 7) {
 		switch m.Promotion {
-		case Rook, Knight, Bishop, Queen:
+		case PieceRook, PieceKnight, PieceBishop, PieceQueen:
 			break
+		case PieceNone:
+			return &MoveError{
+				Cause:  m,
+				Reason: "must specify what to promote pawn to",
+			}
 		default:
 			return &MoveError{
 				Cause:  m,
 				Reason: "cannot promote to " + m.Promotion.String(),
 			}
 		}
-	} else if m.Promotion != None {
+	} else if m.Promotion != PieceNone {
 		return &MoveError{
 			Cause:  m,
 			Reason: "piece cannot promote",
 		}
 	}
 
-	var inCheck bool
-	legalMoves := m.Moving.LegalMoves(g)
+	var legal bool
+	legalMoves := m.Moving.LegalMoves()
 	for _, s := range legalMoves {
 		if m.To == s {
-			inCheck = true
+			legal = true
 			break
 		}
 	}
-	if inCheck {
+	if !legal {
 		return &MoveError{
 			Cause:   m,
 			Reason:  "player is in check",
@@ -395,7 +340,7 @@ func (g *Game) MakeMove(m Move) error {
 	g.MakeMoveUnconditionally(m)
 
 	// move rook in castles
-	if m.Moving.Type == King {
+	if m.Moving.Type == PieceKing {
 		diff := m.Moving.Location.File - m.To.File
 
 		if diff == -2 {
@@ -419,7 +364,7 @@ func (g *Game) MakeMove(m Move) error {
 
 func (g *Game) canMove(c Color) bool {
 	for _, piece := range g.AlivePieces(c) {
-		if len(piece.LegalMoves(g)) > 0 {
+		if len(piece.LegalMoves()) > 0 {
 			return true
 		}
 	}
@@ -439,44 +384,38 @@ func slicesEqual(a []Space, b []Space) bool {
 	return true
 }
 
-// Init initializes a Game object
-func (g *Game) Init() {
-	*g = Game{
-		white: [16]Piece{
-			Piece{Type: King, Location: Space{Rank: 0, File: 4}, Color: White},
-			Piece{Type: Queen, Location: Space{Rank: 0, File: 3}, Color: White},
-			Piece{Type: Rook, Location: Space{Rank: 0, File: 0}, Color: White},
-			Piece{Type: Rook, Location: Space{Rank: 0, File: 7}, Color: White},
-			Piece{Type: Bishop, Location: Space{Rank: 0, File: 2}, Color: White},
-			Piece{Type: Bishop, Location: Space{Rank: 0, File: 5}, Color: White},
-			Piece{Type: Knight, Location: Space{Rank: 0, File: 1}, Color: White},
-			Piece{Type: Knight, Location: Space{Rank: 0, File: 6}, Color: White},
-			Piece{Type: Pawn, Location: Space{Rank: 1, File: 0}, Color: White},
-			Piece{Type: Pawn, Location: Space{Rank: 1, File: 1}, Color: White},
-			Piece{Type: Pawn, Location: Space{Rank: 1, File: 2}, Color: White},
-			Piece{Type: Pawn, Location: Space{Rank: 1, File: 3}, Color: White},
-			Piece{Type: Pawn, Location: Space{Rank: 1, File: 4}, Color: White},
-			Piece{Type: Pawn, Location: Space{Rank: 1, File: 5}, Color: White},
-			Piece{Type: Pawn, Location: Space{Rank: 1, File: 6}, Color: White},
-			Piece{Type: Pawn, Location: Space{Rank: 1, File: 7}, Color: White},
-		},
-		black: [16]Piece{
-			Piece{Type: King, Location: Space{Rank: 7, File: 4}, Color: Black},
-			Piece{Type: Queen, Location: Space{Rank: 7, File: 3}, Color: Black},
-			Piece{Type: Rook, Location: Space{Rank: 7, File: 0}, Color: Black},
-			Piece{Type: Rook, Location: Space{Rank: 7, File: 7}, Color: Black},
-			Piece{Type: Bishop, Location: Space{Rank: 7, File: 2}, Color: Black},
-			Piece{Type: Bishop, Location: Space{Rank: 7, File: 5}, Color: Black},
-			Piece{Type: Knight, Location: Space{Rank: 7, File: 1}, Color: Black},
-			Piece{Type: Knight, Location: Space{Rank: 7, File: 6}, Color: Black},
-			Piece{Type: Pawn, Location: Space{Rank: 6, File: 0}, Color: Black},
-			Piece{Type: Pawn, Location: Space{Rank: 6, File: 1}, Color: Black},
-			Piece{Type: Pawn, Location: Space{Rank: 6, File: 2}, Color: Black},
-			Piece{Type: Pawn, Location: Space{Rank: 6, File: 3}, Color: Black},
-			Piece{Type: Pawn, Location: Space{Rank: 6, File: 4}, Color: Black},
-			Piece{Type: Pawn, Location: Space{Rank: 6, File: 5}, Color: Black},
-			Piece{Type: Pawn, Location: Space{Rank: 6, File: 6}, Color: Black},
-			Piece{Type: Pawn, Location: Space{Rank: 6, File: 7}, Color: Black},
-		},
+// InitCustom initializes g to a custom chess layout
+func (g *Game) InitCustom(pieces [8][8]Piece) {
+	*g = Game{board: pieces}
+}
+
+// InitClassic initializes g to a classic chess layout,
+func (g *Game) InitClassic() {
+	*g = Game{}
+	rank := [8]PieceType{
+		PieceRook,
+		PieceKnight,
+		PieceBishop,
+		PieceQueen,
+		PieceKing,
+		PieceBishop,
+		PieceKnight,
+		PieceRook,
+	}
+	for i, pieceType := range rank {
+		putPiece(g, pieceType, White, Space{File: i, Rank: 0})
+		putPiece(g, PiecePawn, White, Space{File: i, Rank: 1})
+
+		putPiece(g, pieceType, Black, Space{File: i, Rank: 7})
+		putPiece(g, PiecePawn, Black, Space{File: i, Rank: 6})
+	}
+}
+
+func putPiece(g *Game, p PieceType, c Color, s Space) {
+	g.board[s.File][s.Rank] = Piece{
+		Game:     g,
+		Type:     p,
+		Location: s,
+		Color:    c,
 	}
 }
