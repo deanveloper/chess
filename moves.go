@@ -1,7 +1,5 @@
 package chess
 
-import "fmt"
-
 // Move represents a move in a chess game.
 type Move struct {
 	Snapshot Game
@@ -13,5 +11,5 @@ type Move struct {
 }
 
 func (m Move) String() string {
-	return fmt.Sprintf("Move{%s to %s}", m.Moving, m.To)
+	return "Move{" + m.Moving.String() + " to " + m.To.String()
 }
