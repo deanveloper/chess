@@ -19,14 +19,16 @@ func algShort(m chess.Move) (string, error) {
 
 	// detect castle, uses a `goto` to skip all the standard move notation...
 	// please don't get mad at me for using a goto...
-	diff := to.File - from.File
-	if diff == -2 {
-		builder.WriteString("O-O-O")
-		goto checkDetect
-	}
-	if diff == 2 {
-		builder.WriteString("O-O")
-		goto checkDetect
+	if piece.Type == chess.PieceKing {
+		diff := to.File - from.File
+		if diff == -2 {
+			builder.WriteString("O-O-O")
+			goto checkDetect
+		}
+		if diff == 2 {
+			builder.WriteString("O-O")
+			goto checkDetect
+		}
 	}
 
 	// piece to move
