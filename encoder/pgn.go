@@ -60,7 +60,7 @@ func (r *moveTextReader) Read(b []byte) (int, error) {
 		}
 
 		move := r.moves[r.moveIndex]
-		alg, err := algShort(move)
+		alg, err := PGNAlgebraic(move)
 		if err != nil {
 			r.err = err
 			return bytesRead, err
