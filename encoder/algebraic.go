@@ -13,7 +13,7 @@ type algebraicError struct {
 }
 
 func (a algebraicError) Error() string {
-	return fmt.Sprintf("error parsing %q: %s", a.algebraic, a.reason)
+	return fmt.Sprintf("parsing %q: %s", a.algebraic, a.reason)
 }
 
 // FromAlgebraic returns a move from an algebraic string
@@ -74,15 +74,17 @@ func FromAlgebraic(g *chess.Game, algebraic string) (chess.Move, error) {
 
 	file := -1
 	rank := -1
-	char := algebraic[1]
-	if pieceType == chess.PiecePawn {
-		char = algebraic[0]
-	}
-	if char >= 'a' && char <= 'h' {
-		file = int(char - 'a')
-	}
-	if char >= '1' && char <= '8' {
-		rank = int(char - '1')
+	if len(algebraic) > 3 {
+		char := algebraic[1]
+		if pieceType == chess.PiecePawn {
+			char = algebraic[0]
+		}
+		if char >= 'a' && char <= 'h' {
+			file = int(char - 'a')
+		}
+		if char >= '1' && char <= '8' {
+			rank = int(char - '1')
+		}
 	}
 
 	var pieceFound bool
@@ -90,10 +92,10 @@ func FromAlgebraic(g *chess.Game, algebraic string) (chess.Move, error) {
 	for _, eachPiece := range g.TypedAlivePieces(g.Turn(), pieceType) {
 		for _, space := range eachPiece.Seeing() {
 			if space == target {
-				if file >= 0 && file != space.File {
+				if file >= 0 && file != eachPiece.Location.File {
 					continue
 				}
-				if rank >= 0 && rank != space.Rank {
+				if rank >= 0 && rank != eachPiece.Location.Rank {
 					continue
 				}
 				if pieceFound {
