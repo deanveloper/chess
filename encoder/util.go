@@ -86,7 +86,14 @@ checkDetect:
 		builder.WriteByte('+')
 	}
 	if nextState.InCheckmate(player.Other()) {
-		builder.WriteByte('+')
+		if player == chess.White {
+			builder.WriteString("+ 1-0")
+		} else {
+			builder.WriteString("+ 0-1")
+		}
+	}
+	if nextState.InStalemate(player.Other()) {
+		builder.WriteString(" 1/2-1/2")
 	}
 
 	return builder.String(), nil
