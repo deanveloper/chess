@@ -34,6 +34,7 @@ func tagsReader(tags map[string]string) io.Reader {
 		builder.WriteString(fullTag(key, val))
 	}
 
+	builder.WriteByte('\n')
 	return strings.NewReader(builder.String())
 }
 
