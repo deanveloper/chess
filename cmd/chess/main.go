@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	a "github.com/logrusorgru/aurora"
-	"golang.org/x/xerrors"
 
 	"github.com/deanveloper/chess"
 	"github.com/deanveloper/chess/encoder"
@@ -98,12 +97,14 @@ func runCmd(game *chess.Game, fields []string) bool {
 	case "move":
 		if len(fields) < 2 {
 			fmt.Println("command move:")
-			fmt.Println("\tmakes a move using uci notation")
-			fmt.Println("\tsyntax: move <from><to>[promotion]")
-			fmt.Println("\tex: `move e2e4` or `move a7a8q`")
+			fmt.Println("\tmakes a move using algebraic notation")
+			fmt.Println("\tsyntax: move <algebraic>")
+			fmt.Println("\tex: `move e4`, `move a8Q`, `move Raxd1")
+			fmt.Println("\tmore information about algebraic notation:")
+			fmt.Println("\thttps://en.wikipedia.org/wiki/Algebraic_notation_(chess)")
 			return false
 		}
-		move, err := parseMove(game, fields[1])
+		move, err := encoder.FromAlgebraic(game, fields[1])
 		if err != nil {
 			fmt.Println("error:", err.Error())
 			return false
@@ -254,9 +255,11 @@ func runCmd(game *chess.Game, fields []string) bool {
 		fmt.Println("\tex: `auto board` (automatically print board before your turn)")
 		fmt.Println("\tex: `auto stockfish move` (automatically have stockfish move on this turn)")
 		fmt.Println()
-		fmt.Println("move <from><to>[promotion]")
-		fmt.Println("\tmakes a move using uci notation")
-		fmt.Println("\tex: `move e2e4` or `move a7a8q`")
+		fmt.Println("move <algebraic>")
+		fmt.Println("\tmakes a move using algebraic notation")
+		fmt.Println("\tex: `move e4`, `move a8Q`, `move Raxd1")
+		fmt.Println("\tmore information about algebraic notation:")
+		fmt.Println("\thttps://en.wikipedia.org/wiki/Algebraic_notation_(chess)")
 		fmt.Println()
 		fmt.Println("pieces")
 		fmt.Println("\tlists remaining pieces in the game")
@@ -290,53 +293,4 @@ func rotate(board [8][8]chess.Piece) [8][8]chess.Piece {
 		}
 	}
 	return newBoard
-}
-
-func parseMove(g *chess.Game, uci string) (chess.Move, error) {
-
-	if len(uci) < 4 {
-		return chess.Move{}, xerrors.New("malformed move")
-	}
-
-	var from, to string
-	var promotion byte
-
-	if len(uci) >= 4 {
-		from = uci[0:2]
-		to = uci[2:4]
-	}
-	if len(uci) == 5 {
-		promotion = uci[4]
-	}
-
-	fromFile := int(from[0] - 'a')
-	toFile := int(to[0] - 'a')
-
-	fromRank := int(from[1] - '1')
-	toRank := int(to[1] - '1')
-
-	piece, ok := g.PieceAt(chess.Space{File: fromFile, Rank: fromRank})
-	if !ok {
-		return chess.Move{}, xerrors.New("no piece at " + from)
-	}
-
-	pieces := map[byte]chess.PieceType{
-		'r': chess.PieceRook,
-		'n': chess.PieceKnight,
-		'b': chess.PieceBishop,
-		'q': chess.PieceQueen,
-	}
-
-	var move chess.Move
-	move.Snapshot = *g
-	move.Moving = piece
-	move.To = chess.Space{File: toFile, Rank: toRank}
-
-	if typ, ok := pieces[promotion]; ok {
-		move.Promotion = typ
-	} else if promotion != 0 {
-		return chess.Move{}, xerrors.New("promotion")
-	}
-
-	return move, nil
 }
