@@ -16,7 +16,7 @@ func (a algebraicError) Error() string {
 	return fmt.Sprintf("error parsing %q: %s", a.algebraic, a.reason)
 }
 
-// FromAlgebraic returns a move from an algebraic string.
+// FromAlgebraic returns a move from an algebraic string
 func FromAlgebraic(g *chess.Game, algebraic string) (chess.Move, error) {
 
 	// remove checkmate and en passant symbols
