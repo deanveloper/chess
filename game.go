@@ -5,6 +5,13 @@ type castlingRights struct {
 	WhiteKing, WhiteQueen bool
 }
 
+// CompletionState represents the current completion state of the board
+type CompletionState struct {
+	Done   bool
+	Draw   bool
+	Winner Color
+}
+
 // Game represents a game of chess
 type Game struct {
 	// stored in [file][rank] form
@@ -21,6 +28,9 @@ type Game struct {
 
 	// the number of total moves in the game so far
 	Fullmove int
+
+	// the current completion state
+	Completion CompletionState
 }
 
 // Clone returns a new instance of `g`.
@@ -230,8 +240,6 @@ func (g *Game) CanDraw() bool {
 // of if it should be allowed or not.
 func (g *Game) MakeMoveUnconditionally(m Move) {
 
-	var pieceTaken bool
-
 	var target *Piece
 	target = &g.board[m.To.File][m.To.Rank]
 
@@ -271,18 +279,17 @@ func (g *Game) MakeMoveUnconditionally(m Move) {
 		g.Castles.BlackKing = false
 		g.Castles.BlackQueen = false
 	}
-
-	// update move counts
-	g.Fullmove++
-	if pieceTaken || m.Moving.Type == PiecePawn {
-		g.Halfmove = 0
-	} else {
-		g.Halfmove++
-	}
 }
 
 // MakeMove makes a move in the game, or returns an error if the move is not possible.
 func (g *Game) MakeMove(m Move) error {
+
+	if g.Completion.Done {
+		return &MoveError{
+			Cause:  m,
+			Reason: "the game is over",
+		}
+	}
 
 	if m.Moving.Color != g.Turn() {
 		return &MoveError{
@@ -344,6 +351,9 @@ func (g *Game) MakeMove(m Move) error {
 		}
 	}
 
+	other := g.Turn().Other()
+	oldAlivePieces := len(g.AlivePieces(other))
+
 	// make the move
 	g.MakeMoveUnconditionally(m)
 
@@ -365,6 +375,25 @@ func (g *Game) MakeMove(m Move) error {
 				To:     Space{File: 5, Rank: m.To.Rank},
 			})
 		}
+	}
+
+	// update move counts
+
+	g.Fullmove++
+	if len(g.AlivePieces(other)) < oldAlivePieces || m.Moving.Type == PiecePawn {
+		g.Halfmove = 0
+	} else {
+		g.Halfmove++
+	}
+
+	// check completion state
+	if g.InCheckmate(g.Turn()) {
+		g.Completion.Done = true
+		g.Completion.Winner = g.Turn().Other()
+	}
+	if g.InStalemate(g.Turn()) {
+		g.Completion.Done = true
+		g.Completion.Draw = true
 	}
 
 	return nil
