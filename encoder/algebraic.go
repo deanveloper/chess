@@ -19,7 +19,7 @@ func (a algebraicError) Error() string {
 // FromAlgebraic returns a move from an algebraic string
 func FromAlgebraic(g *chess.Game, algebraic string) (chess.Move, error) {
 
-	// remove checkmate and en passant symbols
+	// remove check(mate) and en passant symbols
 	algebraic = strings.TrimSuffix(algebraic, "+")
 	algebraic = strings.TrimSuffix(algebraic, "+")
 	algebraic = strings.TrimSuffix(algebraic, "#")
@@ -27,6 +27,24 @@ func FromAlgebraic(g *chess.Game, algebraic string) (chess.Move, error) {
 
 	if len(algebraic) < 2 {
 		return chess.Move{}, algebraicError{algebraic: algebraic, reason: "too short"}
+	}
+
+	// handle castles
+	if algebraic == "O-O" || algebraic == "0-0" {
+		king := g.TypedAlivePieces(g.Turn(), chess.PieceKing)[0]
+		return chess.Move{
+			Snapshot: *g,
+			Moving:   king,
+			To:       chess.Space{File: king.Location.File + 2, Rank: king.Location.Rank},
+		}, nil
+	}
+	if algebraic == "O-O-O" || algebraic == "0-0-0" {
+		king := g.TypedAlivePieces(g.Turn(), chess.PieceKing)[0]
+		return chess.Move{
+			Snapshot: *g,
+			Moving:   king,
+			To:       chess.Space{File: king.Location.File - 2, Rank: king.Location.Rank},
+		}, nil
 	}
 
 	var promotion chess.PieceType
@@ -216,8 +234,7 @@ func Algebraic(m chess.Move) string {
 }
 
 // PGNAlgebraic returns the algebraic notation used for PGN notation. This
-// means that checks are included, and a game result is appended if it is the
-// final move of the game.
+// means that checks are included.
 func PGNAlgebraic(m chess.Move) (string, error) {
 
 	player := m.Moving.Color
@@ -232,14 +249,7 @@ func PGNAlgebraic(m chess.Move) (string, error) {
 		alg += "+"
 	}
 	if nextState.InCheckmate(player.Other()) {
-		if player == chess.White {
-			alg += "+ 1-0"
-		} else {
-			alg += "+ 0-1"
-		}
-	}
-	if nextState.InStalemate(player.Other()) {
-		alg += " 1/2-1/2"
+		alg += "+"
 	}
 
 	return alg, nil

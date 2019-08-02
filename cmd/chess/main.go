@@ -214,7 +214,9 @@ func runCmd(game *chess.Game, fields []string) bool {
 		}
 		fmt.Println(string(all))
 	case "pgn":
-		all, err := ioutil.ReadAll(encoder.PGNReader(nil, history))
+		ch := make(chan chess.CompletionState, 1)
+		ch <- game.Completion
+		all, err := ioutil.ReadAll(encoder.PGNReader(nil, sliceToChan(history), ch))
 		if err != nil {
 			fmt.Println("error:", err)
 			return false
@@ -283,6 +285,14 @@ func runCmd(game *chess.Game, fields []string) bool {
 		return false
 	}
 	return true
+}
+
+func sliceToChan(moves []chess.Move) <-chan chess.Move {
+	ch := make(chan chess.Move, len(moves))
+	for _, elem := range moves {
+		ch <- elem
+	}
+	return ch
 }
 
 func rotate(board [8][8]chess.Piece) [8][8]chess.Piece {

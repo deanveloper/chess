@@ -10,8 +10,8 @@ import (
 
 // PGNReader returns a reader for a game that
 // reads the data into PGN notation.
-func PGNReader(tags map[string]string, moves []chess.Move) io.Reader {
-	return io.MultiReader(tagsReader(tags), &moveTextReader{moves: moves})
+func PGNReader(tags map[string]string, moves <-chan chess.Move, completion <-chan chess.CompletionState) io.Reader {
+	return io.MultiReader(tagsReader(tags), &moveTextReader{moves: moves}, completionStateReader(completion))
 }
 
 func tagsReader(tags map[string]string) io.Reader {
@@ -38,10 +38,16 @@ func tagsReader(tags map[string]string) io.Reader {
 	return strings.NewReader(builder.String())
 }
 
-type moveTextReader struct {
-	moves []chess.Move
+func fullTag(key, value string) string {
+	value = strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(value)
+	return fmt.Sprintf(`[%s "%s"]`+"\n", key, value)
+}
 
-	moveIndex int
+type moveTextReader struct {
+	moves <-chan chess.Move
+
+	movesRead int
+	curMove   string
 	strIndex  int
 
 	err error
@@ -54,31 +60,39 @@ func (r *moveTextReader) Read(b []byte) (int, error) {
 
 	var bytesRead int
 
-	for n := len(b); n > 0; {
-		if r.moveIndex >= len(r.moves) {
+	// step 1: finish reading last move
+	if r.strIndex < len(r.curMove) {
+		copied := copy(b[bytesRead:], r.curMove[r.strIndex:])
+		r.strIndex += copied
+		bytesRead += copied
+	}
+
+	for bytesRead < len(b) {
+		var move chess.Move
+		move, ok := <-r.moves
+		if !ok {
+			r.err = io.EOF
 			return bytesRead, io.EOF
 		}
 
-		move := r.moves[r.moveIndex]
 		alg, err := PGNAlgebraic(move)
 		if err != nil {
 			r.err = err
 			return bytesRead, err
 		}
-		if r.moveIndex%2 == 0 {
-			alg = fmt.Sprintf("%d. %s", r.moveIndex/2+1, alg)
+		if r.movesRead%2 == 0 {
+			alg = fmt.Sprintf("%d. %s", r.movesRead/2+1, alg)
 		}
-		if r.moveIndex < len(r.moves)-1 {
+		if r.movesRead < len(r.moves)-1 {
 			alg += " "
 		}
 
 		copied := copy(b[bytesRead:], alg[r.strIndex:])
-		n -= copied
 		r.strIndex += copied
 		bytesRead += copied
 
 		if r.strIndex == len(alg) {
-			r.moveIndex++
+			r.movesRead++
 			r.strIndex = 0
 		}
 	}
@@ -86,7 +100,20 @@ func (r *moveTextReader) Read(b []byte) (int, error) {
 	return bytesRead, nil
 }
 
-func fullTag(key, value string) string {
-	value = strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(value)
-	return fmt.Sprintf(`[%s "%s"]`+"\n", key, value)
+func completionStateReader(completion <-chan chess.CompletionState) io.Reader {
+	var final string
+
+	complete := <-completion
+	if complete.Done {
+		switch {
+		case complete.Draw:
+			final = " 1/2-1/2"
+		case complete.Winner == chess.White:
+			final = " 1-0"
+		case complete.Winner == chess.Black:
+			final = " 0-1"
+		}
+	}
+
+	return strings.NewReader(final)
 }
